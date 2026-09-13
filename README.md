@@ -25,6 +25,8 @@ The pull pattern is only as good as the model's willingness to read: a strong ag
 
 ## Try it
 
+Fastest: `./scripts/demo.sh` ingests the bundled fixture corpus and walks through index, search, read and grep, then prints the exact `claude mcp add` line. `./scripts/demo.sh ./your-docs` does the same on your own folder.
+
 ```sh
 uv tool install contextpull            # or: pip install contextpull  (not yet published; use `uv run` from this repo)
 contextpull ingest ./docs              # writes .contextpull/store.sqlite
