@@ -1,0 +1,25 @@
+"""stagewise adapter over ContextPull's lexical `search`.
+
+    export CONTEXTPULL_STORE=.contextpull/store.sqlite
+    contextpull export-chunks > chunks.jsonl
+    stagewise run --corpus chunks.jsonl --adapter examples/stagewise_adapter.py:ContextPullSearch
+
+This measures the search tool alone as a one-shot retriever, next to
+stagewise's built-in bm25 / dense / hybrid over the same sections. The full
+agentic loop (M3) is a different adapter.
+"""
+
+from __future__ import annotations
+
+import os
+
+from contextpull import Ops, Store
+
+
+class ContextPullSearch:
+    def __init__(self) -> None:
+        self.store = Store.open(os.environ.get("CONTEXTPULL_STORE", ".contextpull/store.sqlite"))
+        self.ops = Ops(self.store)
+
+    def retrieve(self, query: str, k: int) -> list[str]:
+        return [h.id for h in self.ops.search(query, limit=k).hits]

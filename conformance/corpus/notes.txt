@@ -1,0 +1,7 @@
+Release Notes
+
+Version 2.1 adds store credits and shortens the refund window to 14 days. Version 2.0 introduced the gateway error codes.
+
+Known Issues
+
+The R-40 datasheet lists the storage range incorrectly in print editions before March. The online table is authoritative.

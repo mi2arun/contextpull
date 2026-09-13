@@ -1,0 +1,7 @@
+{
+  "name": "contextpull-client-example",
+  "private": true,
+  "type": "module",
+  "scripts": { "start": "node client.mjs" },
+  "dependencies": { "@modelcontextprotocol/sdk": "^1.12.0" }
+}

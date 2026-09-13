@@ -1,0 +1,40 @@
+[project]
+name = "contextpull"
+version = "0.1.0"
+description = "Pull, don't push. Turns a folder of documents into an always-in-context index plus tools that return exact sections on demand, for Claude Code, any MCP host, or your own client."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+authors = [{ name = "Arunkumar S" }]
+keywords = ["mcp", "retrieval", "agents", "claude-code", "sqlite", "fts5"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Topic :: Software Development :: Libraries",
+]
+# The core has zero runtime dependencies on purpose (ADR 001).
+dependencies = []
+
+[project.optional-dependencies]
+mcp = ["mcp>=1.0"]
+pdf = ["pypdf>=4"]
+
+[project.scripts]
+contextpull = "contextpull.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/mi2arun/contextpull"
+Repository = "https://github.com/mi2arun/contextpull"
+Documentation = "https://github.com/mi2arun/contextpull/tree/main/docs"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/contextpull"]
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

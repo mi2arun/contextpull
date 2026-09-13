@@ -1,0 +1,367 @@
+{
+  "meta": {
+    "store_schema": "1.0",
+    "corpus_fingerprint": "3355b624ffff0c5b",
+    "documents": 7,
+    "sections": 27
+  },
+  "cases": [
+    {
+      "op": "index",
+      "args": {},
+      "expect": {
+        "text_sha": "51e331ebf1131946"
+      }
+    },
+    {
+      "op": "index",
+      "args": {
+        "prefix": "policies/"
+      },
+      "expect": {
+        "text_sha": "4f0c6502d2fde63f"
+      }
+    },
+    {
+      "op": "search",
+      "args": {
+        "query": "TX-4419"
+      },
+      "expect": {
+        "ids": [
+          "errors.md#1"
+        ],
+        "mode": "lexical",
+        "empty": false
+      }
+    },
+    {
+      "op": "search",
+      "args": {
+        "query": "refund window"
+      },
+      "expect": {
+        "ids": [
+          "policies/policy-2024.md#2",
+          "policies/policy-2023.md#1",
+          "policies/policy-2025.md#2",
+          "notes.txt#0",
+          "policies/policy-2024.md#0",
+          "policies/policy-2025.md#0",
+          "policies/policy-2023.md#0",
+          "policies/policy-2024.md#4",
+          "policies/policy-2025.md#4",
+          "policies/policy-2023.md#2"
+        ],
+        "mode": "lexical",
+        "empty": false
+      }
+    },
+    {
+      "op": "search",
+      "args": {
+        "query": "refund window",
+        "in": [
+          "policies/policy-2024.md",
+          "policies/policy-2025.md"
+        ]
+      },
+      "expect": {
+        "ids": [
+          "policies/policy-2024.md#2",
+          "policies/policy-2025.md#2",
+          "policies/policy-2024.md#0",
+          "policies/policy-2025.md#0",
+          "policies/policy-2024.md#4",
+          "policies/policy-2025.md#4",
+          "policies/policy-2024.md#1",
+          "policies/policy-2025.md#1",
+          "policies/policy-2024.md#3",
+          "policies/policy-2025.md#3"
+        ],
+        "mode": "lexical",
+        "empty": false
+      }
+    },
+    {
+      "op": "search",
+      "args": {
+        "query": "refund",
+        "in": [
+          "policies"
+        ]
+      },
+      "expect": {
+        "ids": [
+          "policies/policy-2024.md#2",
+          "policies/policy-2023.md#1",
+          "policies/policy-2025.md#2",
+          "policies/policy-2024.md#0",
+          "policies/policy-2025.md#0",
+          "policies/policy-2023.md#0",
+          "policies/policy-2024.md#4",
+          "policies/policy-2025.md#4",
+          "policies/policy-2023.md#2",
+          "policies/policy-2024.md#1"
+        ],
+        "mode": "lexical",
+        "empty": false
+      }
+    },
+    {
+      "op": "search",
+      "args": {
+        "query": "store credit expire"
+      },
+      "expect": {
+        "ids": [
+          "policies/policy-2025.md#3",
+          "policies/policy-2025.md#2",
+          "notes.txt#0"
+        ],
+        "mode": "lexical",
+        "empty": false
+      }
+    },
+    {
+      "op": "search",
+      "args": {
+        "query": "R-40 storage temp"
+      },
+      "expect": {
+        "ids": [
+          "specs.md#0",
+          "notes.txt#1"
+        ],
+        "mode": "lexical",
+        "empty": false
+      }
+    },
+    {
+      "op": "search",
+      "args": {
+        "query": "no-cache flag"
+      },
+      "expect": {
+        "ids": [
+          "guides/getting-started.md#2"
+        ],
+        "mode": "lexical",
+        "empty": false
+      }
+    },
+    {
+      "op": "search",
+      "args": {
+        "query": "GATEWAY_TIMEOUT_MS"
+      },
+      "expect": {
+        "ids": [
+          "errors.md#3"
+        ],
+        "mode": "lexical",
+        "empty": false
+      }
+    },
+    {
+      "op": "search",
+      "args": {
+        "query": "installation requirements python",
+        "limit": 3
+      },
+      "expect": {
+        "ids": [
+          "guides/getting-started.md#1",
+          "guides/getting-started.md#3",
+          "guides/getting-started.md#2"
+        ],
+        "mode": "lexical",
+        "empty": false
+      }
+    },
+    {
+      "op": "search",
+      "args": {
+        "query": "zzzz-nothing-here"
+      },
+      "expect": {
+        "ids": [],
+        "mode": "lexical",
+        "empty": true
+      }
+    },
+    {
+      "op": "read",
+      "args": {
+        "id": "policies/policy-2025.md#2"
+      },
+      "expect": {
+        "id": "policies/policy-2025.md#2",
+        "text_sha": "a0f21498fb01363b",
+        "heading_path": "Refund Policy 2025 > Refund window",
+        "context_ids": [],
+        "prev": "policies/policy-2025.md#1",
+        "next": "policies/policy-2025.md#3"
+      }
+    },
+    {
+      "op": "read",
+      "args": {
+        "id": "policies/policy-2025.md#2",
+        "context": 1
+      },
+      "expect": {
+        "id": "policies/policy-2025.md#2",
+        "text_sha": "a0f21498fb01363b",
+        "heading_path": "Refund Policy 2025 > Refund window",
+        "context_ids": [
+          "policies/policy-2025.md#1",
+          "policies/policy-2025.md#3"
+        ],
+        "prev": "policies/policy-2025.md#1",
+        "next": "policies/policy-2025.md#3"
+      }
+    },
+    {
+      "op": "read",
+      "args": {
+        "id": "specs.md#1"
+      },
+      "expect": {
+        "id": "specs.md#1",
+        "text_sha": "5306be4e00ca8420",
+        "heading_path": "Product specifications > Warranty",
+        "context_ids": [],
+        "prev": "specs.md#0",
+        "next": null
+      }
+    },
+    {
+      "op": "read",
+      "args": {
+        "id": "missing.md#0"
+      },
+      "expect": {
+        "error": true
+      }
+    },
+    {
+      "op": "grep",
+      "args": {
+        "pattern": "TX-4419"
+      },
+      "expect": {
+        "ids": [
+          "errors.md#1"
+        ],
+        "lines_sha": [
+          "da12d9542c71cc37"
+        ],
+        "truncated": false
+      }
+    },
+    {
+      "op": "grep",
+      "args": {
+        "pattern": "refund",
+        "limit": 3
+      },
+      "expect": {
+        "ids": [
+          "notes.txt#0",
+          "policies/policy-2023.md#0",
+          "policies/policy-2023.md#1"
+        ],
+        "lines_sha": [
+          "b739a03648497402",
+          "f22f68a9156f2a53",
+          "44fc031a922d4cc4"
+        ],
+        "truncated": true
+      }
+    },
+    {
+      "op": "grep",
+      "args": {
+        "pattern": "retry",
+        "in": [
+          "errors.md"
+        ]
+      },
+      "expect": {
+        "ids": [
+          "errors.md#1",
+          "errors.md#2",
+          "errors.md#3"
+        ],
+        "lines_sha": [
+          "6f914e319dc5fc2b",
+          "fd18807b5d00197e",
+          "7623716d4e6c653a"
+        ],
+        "truncated": false
+      }
+    },
+    {
+      "op": "grep",
+      "args": {
+        "pattern": "°C",
+        "limit": 2
+      },
+      "expect": {
+        "ids": [
+          "specs.md#0"
+        ],
+        "lines_sha": [
+          "dbd44629d62ece1b"
+        ],
+        "truncated": false
+      }
+    },
+    {
+      "op": "neighbours",
+      "args": {
+        "id": "policies/policy-2025.md#2"
+      },
+      "expect": {
+        "ids": [
+          "policies/policy-2025.md#1",
+          "policies/policy-2025.md#2",
+          "policies/policy-2025.md#3"
+        ],
+        "header": null
+      }
+    },
+    {
+      "op": "neighbours",
+      "args": {
+        "id": "guides/getting-started.md#0",
+        "before": 0,
+        "after": 2
+      },
+      "expect": {
+        "ids": [
+          "guides/getting-started.md#0",
+          "guides/getting-started.md#1",
+          "guides/getting-started.md#2"
+        ],
+        "header": null
+      }
+    },
+    {
+      "op": "neighbours",
+      "args": {
+        "id": "specs.md#1",
+        "before": 1,
+        "after": 1
+      },
+      "expect": {
+        "ids": [
+          "specs.md#0",
+          "specs.md#1"
+        ],
+        "header": null
+      }
+    }
+  ]
+}
