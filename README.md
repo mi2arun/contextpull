@@ -4,7 +4,7 @@ Pull, don't push. ContextPull turns a folder of documents into something an LLM 
 
 Zero runtime dependencies. One SQLite file. Works offline.
 
-ContextPull ships with a companion, [stagewise](https://github.com/mi2arun/stagewise): a neutral benchmark harness that builds an eval set from your corpus and scores ContextPull next to bm25, dense and hybrid pipelines. Two names, one project, kept apart so the measurement stays independent of the thing it measures.
+ContextPull ships with a companion, [ragbisect](https://github.com/mi2arun/ragbisect) (formerly stagewise): a neutral benchmark harness that builds an eval set from your corpus and scores ContextPull next to bm25, dense and hybrid pipelines. Two names, one project, kept apart so the measurement stays independent of the thing it measures.
 
 ## Status
 
@@ -20,7 +20,7 @@ contextpull search "refund window" --in policy-2025.md
 contextpull read policy-2025.md#3 --context 1
 contextpull grep TX-4419
 contextpull neighbours specs.md#1
-contextpull export-chunks > chunks.jsonl   # stagewise-compatible sections
+contextpull export-chunks > chunks.jsonl   # ragbisect-compatible sections
 ```
 
 ## In Claude Code
@@ -65,4 +65,4 @@ The store file is the contract. `docs/store-format.md` says what a reader must d
 
 Start at [docs/README.md](docs/README.md): architecture, design, system design, tool reference, evaluation, roadmap, decision records.
 
-Measured with [stagewise](https://github.com/mi2arun/stagewise), which lives next door.
+Measured with [ragbisect](https://github.com/mi2arun/ragbisect), which lives next door.

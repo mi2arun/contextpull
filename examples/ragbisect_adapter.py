@@ -1,11 +1,11 @@
-"""stagewise adapter over ContextPull's lexical `search`.
+"""ragbisect adapter over ContextPull's lexical `search`.
 
     export CONTEXTPULL_STORE=.contextpull/store.sqlite
     contextpull export-chunks > chunks.jsonl
-    stagewise run --corpus chunks.jsonl --adapter examples/stagewise_adapter.py:ContextPullSearch
+    ragbisect run --corpus chunks.jsonl --adapter examples/ragbisect_adapter.py:ContextPullSearch
 
 This measures the search tool alone as a one-shot retriever, next to
-stagewise's built-in bm25 / dense / hybrid over the same sections. The full
+ragbisect's built-in bm25 / dense / hybrid over the same sections. The full
 agentic loop (M3) is a different adapter.
 """
 

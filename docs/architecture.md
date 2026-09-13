@@ -30,7 +30,7 @@ flowchart LR
   T -.-> MCP
   T -.-> REC
   T -.-> EV
-  EV["stagewise adapters"] --> MCP
+  EV["ragbisect adapters"] --> MCP
   EV --> REC
 ```
 
@@ -68,7 +68,7 @@ The store file is the contract (ADR 009). TypeScript and Go get store-native rea
 
 ### Evaluation adapters
 
-Package `contextpull.eval`. Two stagewise adapters, one driving a direct API loop and one driving Claude Code headless. Described in [Evaluation](evaluation.md).
+Package `contextpull.eval`. Two ragbisect adapters, one driving a direct API loop and one driving Claude Code headless. Described in [Evaluation](evaluation.md).
 
 ## Data flow
 
@@ -137,6 +137,6 @@ The store is opened read-only at query time. Nothing at query time calls an LLM;
 2. **Shared, read-only.** One store built in CI, served over streamable HTTP to several hosts. Same binary, one flag.
 3. **Embedded.** A custom client imports the library and calls `ops` directly. No server process.
 
-## Where stagewise sits
+## Where ragbisect sits
 
-stagewise is a separate package and stays framework-agnostic. ContextPull provides `export-chunks` so stagewise can build an eval set over exactly the sections the tools return, and provides adapters that satisfy stagewise's one-method `Retriever` protocol. The dependency goes one way, from `contextpull.eval` to `stagewise`, and only in the eval extra.
+ragbisect is a separate package and stays framework-agnostic. ContextPull provides `export-chunks` so ragbisect can build an eval set over exactly the sections the tools return, and provides adapters that satisfy ragbisect's one-method `Retriever` protocol. The dependency goes one way, from `contextpull.eval` to `ragbisect`, and only in the eval extra.

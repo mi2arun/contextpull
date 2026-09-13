@@ -3,7 +3,7 @@
 **Status:** accepted · 2026-09-13
 
 ## Context
-Ids appear in citations, in tool arguments the model types, in stagewise gold labels, and in logs. They must be readable, stable for an unchanged document, and safe to resolve.
+Ids appear in citations, in tool arguments the model types, in ragbisect gold labels, and in logs. They must be readable, stable for an unchanged document, and safe to resolve.
 
 ## Decision
 `id = "<relative path>#<ordinal>"`, ordinal zero-based in document order. Each section also stores a sha256 of its text. Ids resolve only through the database.

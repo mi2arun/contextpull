@@ -14,7 +14,7 @@ ContextPull applies that pattern to arbitrary document corpora and packages it s
 2. **Exact and citable.** Every piece of text returned carries a stable section ID. Answers cite IDs.
 3. **Host-agnostic.** Works in Claude Code, in any MCP host, and inside a custom client through the same core.
 4. **Install alongside anything.** Zero runtime dependencies in the core. One SQLite file as the store.
-5. **Measured, not asserted.** The agentic configuration is scored with stagewise on the same self-built eval set as bm25, dense and hybrid, and the results are published whether or not they flatter us.
+5. **Measured, not asserted.** The agentic configuration is scored with ragbisect on the same self-built eval set as bm25, dense and hybrid, and the results are published whether or not they flatter us.
 
 ## Non-goals
 
@@ -51,14 +51,14 @@ Each is expanded in a decision record under `adr/`.
 | 005 | Search contract | IDs, heading paths, snippets, scores; no bodies | Return top-k bodies for fewer round trips |
 | 006 | Section identity | `path#ordinal` plus content hash | Content-hash IDs; UUIDs; byte offsets |
 | 007 | Retrieval modes | Lexical first via FTS5 bm25; embeddings optional for hybrid | Dense-first; dense-only |
-| 008 | Evaluation | stagewise as the harness, agentic row in the same table, losses published | Custom benchmark; anecdotal demos |
+| 008 | Evaluation | ragbisect as the harness, agentic row in the same table, losses published | Custom benchmark; anecdotal demos |
 | 009 | Other languages | The SQLite store is the contract; native readers per language, ingest stays Python | Python sidecar only; C core over FFI; service-only interface |
 
 ## Alternatives considered at the product level
 
 **Just write a Claude Code skill or CLAUDE.md instructions.** Tempting and cheap, but it only works in Claude Code, gives the model grep over raw files with no section structure and no citations, and cannot be measured against a push pipeline in a controlled way. ContextPull can produce a CLAUDE.md snippet as a convenience; it is not the product.
 
-**Improve the push pipeline instead.** Hybrid retrieval and reranking do help; stagewise showed hybrid beating dense on our test corpus. But the failure modes that matter most, comparison and aggregation, are about who controls retrieval, not about ranking quality. A better ranker still returns one list for a question that needs two.
+**Improve the push pipeline instead.** Hybrid retrieval and reranking do help; ragbisect showed hybrid beating dense on our test corpus. But the failure modes that matter most, comparison and aggregation, are about who controls retrieval, not about ranking quality. A better ranker still returns one list for a question that needs two.
 
 **Build on an existing agentic RAG framework.** LlamaIndex and LangGraph have agentic retrieval. They bring a dependency tree that conflicts with whatever the user already runs, and they do not expose the corpus to an external host over MCP. The point of ContextPull is to install next to anything.
 
@@ -68,14 +68,14 @@ Each is expanded in a decision record under `adr/`.
 |---|---|
 | Large corpora overflow the index budget | Hierarchical index by directory; search-first guidance in instructions; measured in the scale tiers |
 | Latency of several tool round trips | Acceptable for agent hosts; published as a cost column; `read` with `context` reduces calls |
-| A weak `search` makes the loop weak | FTS5 bm25 with identifier-preserving tokenizer; optional hybrid; stagewise measures `search` alone as a config |
+| A weak `search` makes the loop weak | FTS5 bm25 with identifier-preserving tokenizer; optional hybrid; ragbisect measures `search` alone as a config |
 | Hosts differ in whether instructions reach the system prompt | Index also exposed as tool and resource; instructions tell the model to call `index` first if it sees none |
 | Prior art overlap | Differentiate on structure-preserving sections, citations, and published measurements |
-| Single gold chunk in evaluation undercounts recall | Documented; identifier dedupe and rarity filter in stagewise; misses dumped for inspection |
+| Single gold chunk in evaluation undercounts recall | Documented; identifier dedupe and rarity filter in ragbisect; misses dumped for inspection |
 
 ## Success criteria for v1
 
 - Ingest the `uv` documentation and one PDF-heavy corpus with no manual steps.
 - Claude Code answers a comparison question with two correct citations, visible in the trace.
-- The stagewise table has an agentic row with recall, MRR, NDCG, tokens per query and tool calls per query, next to bm25, dense and hybrid, on at least two corpora and all five question shapes where the corpus supports them.
+- The ragbisect table has an agentic row with recall, MRR, NDCG, tokens per query and tool calls per query, next to bm25, dense and hybrid, on at least two corpora and all five question shapes where the corpus supports them.
 - At least one published case where pull does not beat hybrid, with the reason.

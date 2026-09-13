@@ -11,5 +11,5 @@ One page per decision that would be expensive to reverse. Format: context, decis
 | [005](005-search-returns-pointers.md) | Search returns pointers and snippets, never bodies |
 | [006](006-section-identity.md) | Section ids are path plus ordinal, with a content hash |
 | [007](007-lexical-first.md) | Lexical retrieval first, embeddings optional |
-| [008](008-measure-with-stagewise.md) | Measure with stagewise and publish the losses |
+| [008](008-measure-with-ragbisect.md) | Measure with ragbisect and publish the losses |
 | [009](009-store-file-as-cross-language-contract.md) | The store file is the cross-language contract |

@@ -1,8 +1,8 @@
 # Evaluation
 
-The claim is that pulling beats pushing on the question shapes that matter, at a cost we can state. A claim like that needs the same eval set, the same metrics and the same table for both. stagewise already does that for push configurations. This document says how the pull configuration joins the table.
+The claim is that pulling beats pushing on the question shapes that matter, at a cost we can state. A claim like that needs the same eval set, the same metrics and the same table for both. ragbisect already does that for push configurations. This document says how the pull configuration joins the table.
 
-## What stagewise provides
+## What ragbisect provides
 
 - An eval set built from the corpus with no hand labelling: conceptual and exact-lookup questions today, comparison, aggregation and table questions in its M4.
 - Stage metrics: recall@k, MRR@k, NDCG@k conditioned on a hit, faithfulness by LLM judge.
@@ -12,9 +12,9 @@ The claim is that pulling beats pushing on the question shapes that matter, at a
 
 ## Aligning the units
 
-stagewise scores chunk ids. ContextPull returns section ids. They must be the same ids or the comparison is meaningless.
+ragbisect scores chunk ids. ContextPull returns section ids. They must be the same ids or the comparison is meaningless.
 
-`contextpull export-chunks` writes `{"id", "text", "source"}` lines for every section in the store. stagewise takes that file as its corpus, so the eval set's gold ids are ContextPull section ids, and the built-in push configurations are indexed over exactly the same sections. Sectioning quality is then held constant across all rows; only the controller differs.
+`contextpull export-chunks` writes `{"id", "text", "source"}` lines for every section in the store. ragbisect takes that file as its corpus, so the eval set's gold ids are ContextPull section ids, and the built-in push configurations are indexed over exactly the same sections. Sectioning quality is then held constant across all rows; only the controller differs.
 
 ## Two agentic adapters
 
@@ -57,10 +57,10 @@ Reported overall and per question shape. The per-shape breakdown is where the ar
 
 ## Known distortions, stated up front
 
-- **Single gold chunk.** A question generated from one section may be answerable from another that says the same thing. stagewise dedupes repeated identifiers and rejects very common ones; residual ambiguity makes recall a lower bound for all rows alike.
+- **Single gold chunk.** A question generated from one section may be answerable from another that says the same thing. ragbisect dedupes repeated identifiers and rejects very common ones; residual ambiguity makes recall a lower bound for all rows alike.
 - **Reading is not answering.** A model can read the right section and still answer wrongly. Faithfulness covers part of this; answer correctness against the eval set's reference answers is a later addition.
 - **Model dependence.** The pull row is a property of the model and the tools together. We name the model in every table.
 
 ## Publishing
 
-Results live in `benchmarks/` as the stagewise output, the eval set, the cache fingerprint and a short write-up per corpus. The write-up names the shapes and corpora where pull loses or costs more than it returns. That is the positioning, not a caveat.
+Results live in `benchmarks/` as the ragbisect output, the eval set, the cache fingerprint and a short write-up per corpus. The write-up names the shapes and corpora where pull loses or costs more than it returns. That is the positioning, not a caveat.

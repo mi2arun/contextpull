@@ -16,6 +16,6 @@ One SQLite file in WAL mode holds documents, sections, an FTS5 virtual table wit
 - Vector search past a few tens of thousands of sections needs sqlite-vec or a brute-force pass; acceptable because embeddings are optional.
 
 ## Alternatives
-- **Pure-Python BM25 in memory** (what stagewise uses). Fine for a benchmark, not for a server over a large corpus; slow startup, no persistence.
+- **Pure-Python BM25 in memory** (what ragbisect uses). Fine for a benchmark, not for a server over a large corpus; slow startup, no persistence.
 - **A vector database.** Dependency, process, and the wrong primary index: identifiers need lexical matching.
 - **Postgres.** Right for the shared deployment at scale, wrong as the default; the default must be a file.

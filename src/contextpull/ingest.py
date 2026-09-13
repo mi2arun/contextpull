@@ -248,6 +248,6 @@ def _retry_summary(store: Store, rel: str, sha: str, summarizer: Summarizer, nam
 
 
 def export_chunks(store: Store) -> Iterable[str]:
-    """stagewise-compatible JSONL: {"id","text","source"} per section."""
+    """ragbisect-compatible JSONL: {"id","text","source"} per section."""
     for r in store.conn.execute("SELECT s.id, s.text, d.path FROM sections s JOIN documents d USING(doc_id) ORDER BY d.path, s.ordinal"):
         yield json.dumps({"id": r["id"], "text": r["text"], "source": r["path"]}, ensure_ascii=False)

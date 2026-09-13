@@ -15,7 +15,7 @@ Four milestones, each with an acceptance test that a cold reader can run. Order 
 
 **Acceptance.** Ingest the `uv` docs (81 files). `search "UV_CACHE_DIR"` returns the cache section first. `read` of a table section returns the header row. Re-running ingest with no changes writes nothing and produces byte-identical index text. Unit tests for sectioning invariants.
 
-**Result, 2026-09-13.** 81 documents, 604 sections, 0.3 s. No-change re-ingest: 0 writes, identical index. Table parts carry their header (tested on the fixture; the `uv` docs have no table over the size limit). Sectioning invariants: unit tests pass; 23 conformance cases pass. A broader campaign (adversarial inputs, 60 randomised seeds, CLI, concurrent reads during ingest, a 98k-section scale run, and a stagewise quality measurement) is written up in [testing.md](testing.md); it found seven further bugs, all fixed. **One criterion not met as written:** `search "UV_CACHE_DIR"` ranks the concepts page third, behind two CI caching sections that also use the variable; bm25 prefers the shorter sections. The heading paths (`Caching > Cache directory` vs `Using uv in GitLab CI/CD > Caching`) let a model pick the right one from the pointers, which is the pull argument, but ranking a definition above a usage is open work: a summary or title column in the FTS table is the likely fix and is tracked for M2. Two bugs found and fixed by this run: fence info strings with attributes broke code-block detection, and `-` `.` as token characters made `--no-cache` and sentence-final words unsearchable until the indexed columns were normalised. The index went compact rather than flat at 81 documents with offline summaries, which led to the compact mode being added.
+**Result, 2026-09-13.** 81 documents, 604 sections, 0.3 s. No-change re-ingest: 0 writes, identical index. Table parts carry their header (tested on the fixture; the `uv` docs have no table over the size limit). Sectioning invariants: unit tests pass; 23 conformance cases pass. A broader campaign (adversarial inputs, 60 randomised seeds, CLI, concurrent reads during ingest, a 98k-section scale run, and a ragbisect quality measurement) is written up in [testing.md](testing.md); it found seven further bugs, all fixed. **One criterion not met as written:** `search "UV_CACHE_DIR"` ranks the concepts page third, behind two CI caching sections that also use the variable; bm25 prefers the shorter sections. The heading paths (`Caching > Cache directory` vs `Using uv in GitLab CI/CD > Caching`) let a model pick the right one from the pointers, which is the pull argument, but ranking a definition above a usage is open work: a summary or title column in the FTS table is the likely fix and is tracked for M2. Two bugs found and fixed by this run: fence info strings with attributes broke code-block detection, and `-` `.` as token characters made `--no-cache` and sentence-final words unsearchable until the indexed columns were normalised. The index went compact rather than flat at 81 documents with offline summaries, which led to the compact mode being added.
 
 ## M2 — MCP server and Claude Code · built 2026-09-13
 
@@ -39,10 +39,10 @@ Nine MCP tests pass over in-memory streams and a real stdio subprocess, includin
 - `contextpull.eval.ApiLoopRetriever`: direct API tool loop, returns section IDs read in order.
 - `contextpull.eval.ClaudeCodeRetriever`: drives `claude -p` headless with the server attached, parses the trace.
 - Cost and latency per query recorded alongside recall.
-- `export-chunks` so the stagewise eval set is built over ContextPull sections.
+- `export-chunks` so the ragbisect eval set is built over ContextPull sections.
 - TypeScript package: store-native reader, `npx contextpull serve`, conformance runner.
 
-**Acceptance.** stagewise prints a table with bm25, dense, hybrid and agentic rows on the `uv` docs. Numbers are reproducible from the cache. The agentic row includes tokens and tool calls per query.
+**Acceptance.** ragbisect prints a table with bm25, dense, hybrid and agentic rows on the `uv` docs. Numbers are reproducible from the cache. The agentic row includes tokens and tool calls per query.
 
 ## M4 — Breadth and publication
 
@@ -53,7 +53,7 @@ Nine MCP tests pass over in-memory streams and a real stdio subprocess, includin
 - Go reader and single-binary server for the shared deployment.
 - Published benchmark across two or more corpora and all five question shapes, including cases where pull loses.
 
-**Acceptance.** A second corpus with tables and versioned documents supports all five shapes in stagewise. The write-up names at least one shape or corpus where hybrid push is the better choice and says why.
+**Acceptance.** A second corpus with tables and versioned documents supports all five shapes in ragbisect. The write-up names at least one shape or corpus where hybrid push is the better choice and says why.
 
 ## Later, only if M1–M4 land and people use it
 

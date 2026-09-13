@@ -12,7 +12,7 @@ What is tested, how, and what the M1 campaign found. Numbers are from 13 Septemb
 | CLI and concurrency | `tests/test_cli_concurrency.py` | Every subcommand and its JSON output, exit codes, env var precedence, a reader running while ingest rewrites the store five times |
 | Conformance | `conformance/run.py check` | 23 cases over a fixture store: the executable cross-language contract |
 | Scale | `scripts/scale_test.py [n]` | Synthetic corpus, ingest throughput, store size, per-operation latency, identifier precision |
-| Quality | `examples/stagewise_adapter.py` with stagewise | `search` as a one-shot retriever against stagewise's bm25, dense and hybrid over the same sections |
+| Quality | `examples/ragbisect_adapter.py` with ragbisect | `search` as a one-shot retriever against ragbisect's bm25, dense and hybrid over the same sections |
 
 ## Scale results
 
@@ -45,16 +45,16 @@ Store size is about 3.6 KB per section, roughly twice the text: FTS5 keeps its o
 
 ## Quality results
 
-stagewise over the `uv` documentation, 604 ContextPull sections exported with `export-chunks`, 219 self-generated questions, k = 5, generation model gpt-5.4-mini.
+ragbisect over the `uv` documentation, 604 ContextPull sections exported with `export-chunks`, 219 self-generated questions, k = 5, generation model gpt-5.4-mini.
 
 | config | recall@5 | mrr@5 | ndcg@5 given hit | conceptual recall | exact-lookup recall |
 |---|---|---|---|---|---|
 | ContextPull `search` (lexical) | 0.927 | 0.777 | 0.879 | 0.906 | 0.956 |
-| stagewise bm25 | 0.922 | 0.785 | 0.889 | 0.914 | 0.934 |
-| stagewise dense | 0.918 | 0.791 | 0.897 | 0.938 | 0.890 |
-| stagewise hybrid RRF | 0.963 | 0.870 | 0.928 | 0.945 | 0.989 |
+| ragbisect bm25 | 0.922 | 0.785 | 0.889 | 0.914 | 0.934 |
+| ragbisect dense | 0.918 | 0.791 | 0.897 | 0.938 | 0.890 |
+| ragbisect hybrid RRF | 0.963 | 0.870 | 0.928 | 0.945 | 0.989 |
 
-Reading: the identifier-preserving tokeniser and normalisation do what they were for, ContextPull's lexical search leads every single-mode config on exact lookups. It trails dense on conceptual questions by about three points, which is the case for the optional hybrid mode. Hybrid still wins overall, as it did on stagewise's own chunks. This is a one-shot measurement of the `search` tool; the agentic loop that lets the model search twice is M3, and that is where the pull argument is actually tested.
+Reading: the identifier-preserving tokeniser and normalisation do what they were for, ContextPull's lexical search leads every single-mode config on exact lookups. It trails dense on conceptual questions by about three points, which is the case for the optional hybrid mode. Hybrid still wins overall, as it did on ragbisect's own chunks. This is a one-shot measurement of the `search` tool; the agentic loop that lets the model search twice is M3, and that is where the pull argument is actually tested.
 
 ## Bugs found by the campaign, all fixed
 
@@ -80,6 +80,6 @@ Bugs found: empty summaries from reasoning tokens eating a small completion budg
 ## Not yet tested
 
 - PDF parsing (M4, no extra installed yet).
-- Hybrid search with real embeddings (needs a provider; measured indirectly via stagewise's dense config).
+- Hybrid search with real embeddings (needs a provider; measured indirectly via ragbisect's dense config).
 - Windows paths and case-insensitive filesystems.
 - A second real corpus with large tables and versioned documents; the fixture corpus covers those shapes at small scale.

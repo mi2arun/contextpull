@@ -6,7 +6,7 @@
     contextpull read policy-2025.md#3 --context 1
     contextpull grep TX-4419
     contextpull neighbours specs.md#7
-    contextpull export-chunks > chunks.jsonl  stagewise-compatible sections
+    contextpull export-chunks > chunks.jsonl  ragbisect-compatible sections
     contextpull tools-json > tools.json
 """
 
@@ -287,7 +287,7 @@ def build_parser() -> argparse.ArgumentParser:
     _json_arg(g)
     g.set_defaults(func=cmd_neighbours)
 
-    g = sub.add_parser("export-chunks", help="stagewise-compatible JSONL of all sections")
+    g = sub.add_parser("export-chunks", help="ragbisect-compatible JSONL of all sections")
     _store_arg(g)
     g.set_defaults(func=cmd_export)
 
