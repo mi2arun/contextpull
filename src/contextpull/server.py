@@ -22,7 +22,7 @@ try:
     from mcp.server.models import InitializationOptions
     from mcp.server.stdio import stdio_server
 except ImportError as e:  # pragma: no cover
-    raise ImportError('the MCP server needs the "mcp" extra: pip install "contextpull[mcp]"') from e
+    raise ImportError(f'the MCP server needs the "mcp" extra: pip install "contextpull[mcp]" (underlying error: {e!r})') from e
 
 from . import __version__
 from .index import PREAMBLE

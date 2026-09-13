@@ -1,6 +1,7 @@
 """Eval adapters with a mocked model API and a fake `claude` binary."""
 
 import json
+import pytest
 import os
 import stat
 import sys
@@ -78,6 +79,7 @@ def test_api_loop_anthropic_shape(fixture_store, tmp_path, monkeypatch):
 
 
 def test_claude_code_adapter_parses_trace(fixture_store, tmp_path):
+    pytest.importorskip("contextpull.server")  # the adapter verifies the server interpreter can import the MCP server
     fake = tmp_path / "claude"
     fake.write_text("""#!/bin/sh
 cat <<'EOF2'
@@ -130,6 +132,7 @@ def test_api_loop_surfaced_ids_and_strict_prompt(fixture_store, tmp_path, monkey
 
 
 def test_claude_code_adapter_flags_runs_without_tool_calls(fixture_store, tmp_path):
+    pytest.importorskip("contextpull.server")
     fake = tmp_path / "claude"
     fake.write_text("""#!/bin/sh
 echo '{"type":"result","result":"I think it is 30 days.","total_cost_usd":0.3,"num_turns":1,"usage":{"input_tokens":100,"output_tokens":20},"is_error":false}'

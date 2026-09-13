@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-pytest.importorskip("mcp")
+pytest.importorskip("contextpull.server")
 
 import mcp.types as types  # noqa: E402
 from mcp.client.session import ClientSession  # noqa: E402

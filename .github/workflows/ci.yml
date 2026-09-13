@@ -5,12 +5,15 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    strategy: { matrix: { python: ["3.10", "3.12"] } }
+    strategy:
+      fail-fast: false
+      matrix: { python: ["3.10", "3.12"] }
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
       - run: uv sync --extra mcp --extra pdf --python ${{ matrix.python }}
-      - run: uv run pytest -q
+      - run: uv run python -c "import contextpull.server; print('server import ok')"
+      - run: uv run pytest -q -rs
       - run: uv run python conformance/run.py check
   node:
     runs-on: ubuntu-latest
