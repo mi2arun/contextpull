@@ -183,6 +183,7 @@ pdf = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "pypdf" },
     { name = "pytest" },
 ]
 
@@ -194,7 +195,10 @@ requires-dist = [
 provides-extras = ["mcp", "pdf"]
 
 [package.metadata.requires-dev]
-dev = [{ name = "pytest", specifier = ">=8" }]
+dev = [
+    { name = "pypdf", specifier = ">=4" },
+    { name = "pytest", specifier = ">=8" },
+]
 
 [[package]]
 name = "cryptography"

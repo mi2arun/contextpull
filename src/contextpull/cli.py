@@ -65,6 +65,7 @@ def _run_ingest(a: argparse.Namespace):
         summarizer=llm.summarize if llm else None,
         summarizer_name=name,
         progress=_eprint if getattr(a, "verbose", False) else None,
+        embed_model=(getattr(a, "embed_model", None) or None),
     )
     if llm and llm.calls:
         _eprint(f"summaries: {llm.spend()}")
@@ -81,6 +82,7 @@ def cmd_ingest(a: argparse.Namespace) -> int:
         f"{rep.sections_written} sections written; summaries: {rep.summaries_llm} llm, {rep.summaries_offline} offline"
         + (f" ({rep.summary_errors} model errors, first: {rep.first_summary_error})" if rep.summary_errors else "") + "\n"
         f"index: {rep.index_mode}, ≈{rep.index_tokens} tokens; corpus {rep.corpus_fingerprint}; store {a.store}"
+        + (f"\nembedded {rep.embedded} sections" if rep.embedded else "")
     )
     for path, why in rep.skipped[:20]:
         print(f"  skipped {path}: {why}")
@@ -198,7 +200,12 @@ def cmd_serve(a: argparse.Namespace) -> int:
         _eprint(f"error: {p} is neither a directory nor a store file")
         return 1
     try:
-        asyncio.run(serve_stdio(store, log=a.log))
+        if a.transport == "http":
+            from .server import serve_http
+
+            asyncio.run(serve_http(store, host=a.host, port=a.port, log=a.log))
+        else:
+            asyncio.run(serve_stdio(store, log=a.log))
     except StoreError as e:
         _eprint(f"error: {e}")
         return 1
@@ -230,6 +237,7 @@ def build_parser() -> argparse.ArgumentParser:
     g.add_argument("--heading-depth", type=int, default=int(_env("SECTION_HEADING_DEPTH", "4")))
     g.add_argument("--index-budget", type=int, default=int(_env("INDEX_BUDGET_TOKENS", "3000")), help="index token budget")
     g.add_argument("--summarizer", default=_env("SUMMARIZER", "offline"), help="provider:model for one-line document summaries, or 'offline' (default)")
+    g.add_argument("--embed-model", default=_env("EMBED_MODEL", ""), help="provider:model for section embeddings; enables search --mode hybrid (default: none)")
     g.add_argument("-v", "--verbose", action="store_true")
     _json_arg(g)
     g.set_defaults(func=cmd_ingest)
@@ -243,7 +251,11 @@ def build_parser() -> argparse.ArgumentParser:
     g.add_argument("--heading-depth", type=int, default=int(_env("SECTION_HEADING_DEPTH", "4")))
     g.add_argument("--index-budget", type=int, default=int(_env("INDEX_BUDGET_TOKENS", "3000")))
     g.add_argument("--summarizer", default=_env("SUMMARIZER", "offline"))
+    g.add_argument("--embed-model", default=_env("EMBED_MODEL", ""))
     g.add_argument("--log", action="store_true", help="log one line per tool call to stderr")
+    g.add_argument("--transport", choices=["stdio", "http"], default=_env("TRANSPORT", "stdio"), help="stdio (default, for local hosts) or http (streamable HTTP at /mcp)")
+    g.add_argument("--host", default=_env("HOST", "127.0.0.1"))
+    g.add_argument("--port", type=int, default=int(_env("PORT", "8765")))
     g.set_defaults(func=cmd_serve)
 
     g = sub.add_parser("claude-md", help="print a CLAUDE.md snippet describing how to use the server")

@@ -19,7 +19,7 @@ from typing import Callable, Iterable
 
 from .index import build_index
 from .ops import normalize_for_fts
-from .parse import Heading, Paragraph, parse
+from .parse import parse, parse_pdf, pdf_available
 from .section import SectionRow, sectionize
 from .store import Store
 
@@ -45,6 +45,7 @@ class IngestReport:
     index_mode: str = ""
     index_tokens: int = 0
     corpus_fingerprint: str = ""
+    embedded: int = 0
 
     def to_dict(self) -> dict:
         return {**self.__dict__, "skipped": [list(s) for s in self.skipped]}
@@ -134,6 +135,8 @@ def ingest(
     summarizer: Summarizer | None = None,
     summarizer_name: str = "offline",
     progress: Callable[[str], None] | None = None,
+    embed_model: str | None = None,
+    embed_fn: Callable[[str, list[str]], list[list[float]]] | None = None,
 ) -> IngestReport:
     root = Path(corpus).resolve()
     if not root.is_dir():
@@ -145,7 +148,10 @@ def ingest(
         known = {r["path"]: r["sha256"] for r in store.conn.execute("SELECT path, sha256 FROM documents")}
         offline_docs = {r["path"] for r in store.conn.execute("SELECT path FROM documents WHERE summary_src = 'offline'")}
         seen_paths: set[str] = set()
-        for rel, path, kind in discover(root):
+        extra = {".pdf": "pdf"} if pdf_available() else {}
+        if not extra and any(p.suffix.lower() == ".pdf" for p in root.rglob("*.pdf")):
+            report.skipped.append(("*.pdf", 'PDF files present but the "pdf" extra is not installed: pip install "contextpull[pdf]"'))
+        for rel, path, kind in discover(root, extra):
             report.seen += 1
             seen_paths.add(rel)
             try:
@@ -159,9 +165,11 @@ def ingest(
                 if summarizer is not None and rel in offline_docs:
                     _retry_summary(store, rel, sha, summarizer, summarizer_name, report)
                 continue
-            text = raw.decode("utf-8", errors="replace")
             try:
-                parsed = parse(text, kind, fallback_title=path.stem)
+                if kind == "pdf":
+                    parsed = parse_pdf(raw, fallback_title=path.stem)
+                else:
+                    parsed = parse(raw.decode("utf-8", errors="replace"), kind, fallback_title=path.stem)
                 sections = sectionize(parsed, max_chars=max_chars, min_chars=min_chars, heading_depth=heading_depth)
             except Exception as e:  # a bad file must never abort the run
                 report.skipped.append((rel, f"parse error: {e}"))
@@ -192,6 +200,11 @@ def ingest(
                     store.conn.execute("DELETE FROM documents WHERE doc_id = ?", (doc[0],))
             report.deleted = len(gone)
 
+        if embed_model:
+            report.embedded = _embed_missing(store, embed_model, embed_fn, progress)
+            store.meta_set("embed_model", embed_model)
+            store.conn.commit()
+
         with store.conn:
             fp = _fingerprint(store)
             store.meta_set("corpus_root", str(root))
@@ -210,6 +223,29 @@ def ingest(
     finally:
         store.close()
     return report
+
+
+def _embed_missing(store: Store, model: str, embed_fn, progress) -> int:
+    """Embed every section that has no vector for this model yet (changed or new)."""
+    from .embed import embed_texts, to_blob
+
+    fn = embed_fn or embed_texts
+    rows = store.conn.execute(
+        "SELECT s.id, s.heading_path, s.text FROM sections s LEFT JOIN embeddings e ON e.section_id = s.id AND e.model = ? WHERE e.section_id IS NULL ORDER BY s.id",
+        (model,),
+    ).fetchall()
+    store.conn.execute("DELETE FROM embeddings WHERE model != ?", (model,))
+    done = 0
+    for start in range(0, len(rows), 100):
+        batch = rows[start : start + 100]
+        vectors = fn(model, [f"{r['heading_path']}\n{r['text']}" for r in batch])
+        with store.conn:
+            for r, v in zip(batch, vectors):
+                store.conn.execute("INSERT OR REPLACE INTO embeddings (section_id, model, dim, vec) VALUES (?,?,?,?)", (r["id"], model, len(v), to_blob(v)))
+        done += len(batch)
+        if progress:
+            progress(f"embedded {done}/{len(rows)}")
+    return done
 
 
 def _summary_for(store: Store, sha: str, title: str, sections: list[SectionRow], summarizer: Summarizer | None, name: str, report: IngestReport | None = None) -> tuple[str, str]:

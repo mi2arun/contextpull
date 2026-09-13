@@ -187,3 +187,74 @@ def parse(text: str, kind: str, fallback_title: str = "") -> Parsed:
     if kind == "markdown":
         return parse_markdown(text, fallback_title)
     return parse_text(text, fallback_title)
+
+
+def pdf_available() -> bool:
+    try:
+        import pypdf  # noqa: F401
+    except ImportError:
+        return False
+    return True
+
+
+# --------------------------------------------------------------------- PDF
+
+
+def parse_pdf(data: bytes, fallback_title: str = "") -> Parsed:
+    """PDF via pypdf (optional extra). Headings are inferred from font size:
+    a short run set noticeably larger than the body size becomes a heading,
+    levels assigned by descending size. Tables are not detected in v1."""
+    try:
+        from pypdf import PdfReader
+    except ImportError as e:  # pragma: no cover
+        raise ImportError('PDF parsing needs the "pdf" extra: pip install "contextpull[pdf]"') from e
+    import io
+    from collections import Counter
+
+    reader = PdfReader(io.BytesIO(data))
+    runs: list[tuple[float, str]] = []  # (font_size, text) in reading order, page breaks as (-1, "")
+
+    def visitor(text, cm, tm, font_dict, font_size):
+        t = text.replace("\r", "\n")
+        if t.strip():
+            runs.append((round(float(font_size or 0), 1), t))
+
+    for page in reader.pages:
+        page.extract_text(visitor_text=visitor)
+        runs.append((-1.0, ""))
+
+    # Body size = most common size by characters.
+    counts: Counter[float] = Counter()
+    for size, t in runs:
+        if size > 0:
+            counts[size] += len(t)
+    body = counts.most_common(1)[0][0] if counts else 0.0
+    heading_sizes = sorted({s for s in counts if body and s >= body * 1.2}, reverse=True)
+    level_of = {s: min(i + 1, 6) for i, s in enumerate(heading_sizes)}
+
+    blocks: list[Block] = []
+    buf: list[str] = []
+
+    def flush() -> None:
+        nonlocal buf
+        text = " ".join(" ".join(buf).split())
+        if text:
+            blocks.append(Paragraph(text))
+        buf = []
+
+    for size, t in runs:
+        if size < 0:
+            flush()
+            continue
+        stripped = " ".join(t.split())
+        if size in level_of and len(stripped) <= 120:
+            flush()
+            if blocks and isinstance(blocks[-1], Heading) and blocks[-1].level == level_of[size] and not t.startswith("\n"):
+                blocks[-1].text = (blocks[-1].text + " " + stripped).strip()  # heading split across runs
+            else:
+                blocks.append(Heading(level_of[size], stripped))
+        else:
+            buf.append(t)
+    flush()
+    title = next((b.text for b in blocks if isinstance(b, Heading) and b.level == 1), "") or fallback_title
+    return Parsed(title=title, blocks=blocks)

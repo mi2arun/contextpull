@@ -132,9 +132,33 @@ def _glob_clause(paths: list[str] | None) -> tuple[str, list[str]]:
 
 
 class Ops:
-    def __init__(self, store: Store):
+    def __init__(self, store: Store, embed_fn=None):
+        """``embed_fn(model, texts) -> vectors`` is used for hybrid search; defaults to
+        the OpenAI-compatible endpoint in ``contextpull.embed``. Vectors are loaded
+        into memory on the first hybrid query."""
         self.store = store
         self.conn = store.conn
+        self._embed_fn = embed_fn
+        self._vectors: list[tuple[str, object]] | None = None
+        self._embed_model: str | None = None
+
+    # --------------------------------------------------------------- hybrid
+    def _load_vectors(self) -> bool:
+        if self._vectors is None:
+            from .embed import from_blob
+
+            rows = self.conn.execute("SELECT section_id, model, vec FROM embeddings").fetchall()
+            self._vectors = [(r["section_id"], from_blob(r["vec"])) for r in rows]
+            self._embed_model = rows[0]["model"] if rows else None
+        return bool(self._vectors)
+
+    def _dense(self, query: str, depth: int) -> list[str]:
+        from .embed import dot, embed_texts
+
+        fn = self._embed_fn or embed_texts
+        q = fn(self._embed_model, [query])[0]
+        scored = sorted(((dot(q, v), sid) for sid, v in self._vectors), key=lambda t: (-t[0], t[1]))
+        return [sid for _, sid in scored[:depth]]
 
     # ---------------------------------------------------------------- index
     def index(self, prefix: str | None = None) -> str:
@@ -181,10 +205,39 @@ class Ops:
         result_mode = "lexical"
         hint = None
         if mode == "hybrid":
-            hint = "no embeddings in store; ran lexical"
+            if self._load_vectors():
+                hits = self._fuse(hits, self._dense(query, max(limit * 4, 20)), in_, limit)
+                result_mode = "hybrid"
+            else:
+                hint = "no embeddings in store; ran lexical"
         if not hits:
             hint = "no hits; try grep for exact codes, drop the in= filter, or use fewer words"
         return SearchResult(hits, result_mode, hint)
+
+    def _fuse(self, lexical: list[Hit], dense_ids: list[str], in_: list[str] | None, limit: int, k: int = 60) -> list[Hit]:
+        """Reciprocal rank fusion of the lexical hits and the dense ranking; ties by id."""
+        where, args = _glob_clause(in_)
+        allowed: set[str] | None = None
+        if in_:
+            allowed = {r["id"] for r in self.conn.execute(f"SELECT s.id FROM sections s JOIN documents d ON d.doc_id = s.doc_id WHERE 1=1{where}", args)}
+        scores: dict[str, float] = {}
+        for rank, h in enumerate(lexical):
+            scores[h.id] = scores.get(h.id, 0.0) + 1.0 / (k + rank + 1)
+        for rank, sid in enumerate(dense_ids):
+            if allowed is not None and sid not in allowed:
+                continue
+            scores[sid] = scores.get(sid, 0.0) + 1.0 / (k + rank + 1)
+        by_id = {h.id: h for h in lexical}
+        out: list[Hit] = []
+        for sid, sc in sorted(scores.items(), key=lambda kv: (-kv[1], kv[0]))[:limit]:
+            if sid in by_id:
+                h = by_id[sid]
+                out.append(Hit(h.id, h.doc, h.heading_path, h.snippet, round(sc * 100, 2), h.kind))
+            else:
+                r = self._get(sid)
+                snippet = " ".join(r["text"].split())[:160] + "…"
+                out.append(Hit(sid, r["path"], r["heading_path"], snippet, round(sc * 100, 2), r["kind"]))
+        return out
 
     # ----------------------------------------------------------------- read
     def _row_to_section(self, r: sqlite3.Row, context: bool = False) -> Section:

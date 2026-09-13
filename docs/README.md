@@ -23,7 +23,7 @@ A corpus is ingested once into a single SQLite file: documents, heading-aware se
 
 ## Status
 
-M1 (core, CLI, conformance), M2 (MCP server, Claude Code integration, LLM summaries, protocol client examples) and M3 (agentic rows in the ragbisect table, TypeScript reader and server) built; two benchmark rows pending on API credits; M4 (breadth and publication) next. Name checked free on PyPI, npm and GitHub on 13 September 2026.
+M1 (core, CLI, conformance), M2 (MCP server, Claude Code integration, LLM summaries, protocol client examples) and M3 (agentic rows in the ragbisect table, TypeScript reader and server) built; two benchmark rows pending on API credits; M4 in progress: PDF ingest, hybrid search, and the HTTP transport are built. Name checked free on PyPI, npm and GitHub on 13 September 2026.
 
 ## Vocabulary
 

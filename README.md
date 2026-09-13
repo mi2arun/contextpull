@@ -49,6 +49,14 @@ The server ingests `./docs` into `./docs/.contextpull/store.sqlite`, puts the in
 
 Any other MCP host works the same way; see `examples/clients/` for TypeScript, Go and Java protocol clients and `examples/direct_api_loop.py` for using the tools straight from a model API with no server.
 
+## More
+
+```sh
+uv sync --extra pdf                                             # PDFs: headings inferred from font size
+uv run contextpull ingest ./docs --embed-model openai:text-embedding-3-small   # enables: search --mode hybrid
+uv run contextpull serve ./docs --transport http --port 8765    # streamable HTTP at /mcp for a shared read-only server
+```
+
 ## As a library
 
 ```python

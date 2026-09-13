@@ -105,9 +105,15 @@ Cost per question is the other half of the table. Push retrieval costs milliseco
 - Adding the strict flag to the cache key orphaned the first run's 221 records; a replay meant to be free recomputed about 100 questions before the records were migrated. Cache keys are now part of what a change to the adapter must consider, and the runner's cache directory is ignored in both repos.
 - Rate limiting made six-way concurrency behave like one-way; wall time per query includes back-off sleeps. The ms/q column for pull rows is therefore an upper bound under contention.
 
+## M4 so far
+
+- PDF: a two-page fixture generated with reportlab (`conformance/corpus-pdf/warranty-terms.pdf`, four headings at 15 pt over 11 pt body) ingests into sections with the right heading paths; grep finds `WR-2201`; search finds the exclusions section for "surge".
+- Hybrid: with a deterministic fake embedder, every section gets a vector, re-ingest embeds nothing new, a deleted document loses its vectors, the fused ranking keeps the lexical leaders on top, the path filter applies to the dense side, and a store without vectors falls back to lexical with a hint.
+- Streamable HTTP: the server starts on a free port as a subprocess and the SDK's HTTP client initializes, sees the index in instructions, and runs a tool call.
+
 ## Not yet tested
 
-- PDF parsing (M4, no extra installed yet).
-- Hybrid search with real embeddings (needs a provider; measured indirectly via ragbisect's dense config).
+- Hybrid search with a real embedding provider (pending API credits; plumbing tested with a fake embedder).
+- PDFs with tables, scanned PDFs, PDFs whose body and heading sizes are close.
 - Windows paths and case-insensitive filesystems.
 - A second real corpus with large tables and versioned documents; the fixture corpus covers those shapes at small scale.

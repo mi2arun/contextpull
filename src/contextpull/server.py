@@ -119,3 +119,29 @@ The `contextpull` MCP server exposes this project's documents. Its instructions 
 - For error codes, flags, env vars and part numbers use `grep`.
 - Cite section ids like `[policy-2025.md#3]` in answers.
 """
+
+
+async def serve_http(store_path: str | Path, host: str = "127.0.0.1", port: int = 8765, *, log: bool = False, path: str = "/mcp") -> None:
+    """Streamable HTTP transport for the shared, read-only deployment. Binds to
+    localhost by default; exposing it further is the operator's explicit choice."""
+    import contextlib
+
+    import uvicorn
+    from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
+    from starlette.applications import Starlette
+    from starlette.routing import Mount
+
+    with Store.open(store_path, readonly=True) as store:
+        server, _init = build_server(store, log=log)
+        manager = StreamableHTTPSessionManager(app=server, json_response=False, stateless=True)
+
+        @contextlib.asynccontextmanager
+        async def lifespan(app):
+            async with manager.run():
+                yield
+
+        app = Starlette(routes=[Mount(path, app=manager.handle_request)], lifespan=lifespan)
+        d, n = store.counts()
+        print(f"contextpull serving {store_path} at http://{host}:{port}{path} ({d} documents, {n} sections)", file=sys.stderr, flush=True)
+        config = uvicorn.Config(app, host=host, port=port, log_level="warning")
+        await uvicorn.Server(config).serve()

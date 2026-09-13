@@ -46,12 +46,12 @@ Nine MCP tests pass over in-memory streams and a real stdio subprocess, includin
 
 **Result, 2026-09-14.** Met, with two rows pending. The table in [testing.md](testing.md#m3-measurement) has bm25, dense, hybrid, and two agentic rows with tokens, tool calls and wall time per query, all reproducible from the adapter cache. Headline: pull with a no-reasoning small model reads a section on 1 question in 20 (recall over ids read 0.045); pull through Claude Code reads the right section on 10 of 10 sampled questions (recall 1.0) at about $0.30 a question; hybrid push is 0.964 at 69 ms and no model tokens. The strict-reads and surfaced-ids rows are pending on API credits. Also built in M3: ragbisect cost columns and `--sample`; the TypeScript store-native reader and server (23/23 conformance, identical to Python over MCP).
 
-## M4 — Breadth and publication
+## M4 — Breadth and publication · in progress, 2026-09-14
 
-- PDF ingest through the `pdf` extra; table detection in PDFs where the extractor exposes it.
-- Hierarchical index for corpora past the budget; `index(prefix)` drill-down.
-- Optional embeddings and `search(mode="hybrid")`.
-- Streamable HTTP transport for the shared, read-only deployment.
+- PDF ingest through the `pdf` extra; table detection in PDFs where the extractor exposes it. **Built** (headings from font size; no table detection or page numbers yet).
+- Hierarchical index for corpora past the budget; `index(prefix)` drill-down. **Built in M1/M2** (flat, compact, hierarchical, budget always honoured).
+- Optional embeddings and `search(mode="hybrid")`. **Built**, tested with a fake embedder; a real-provider run is pending on API credits.
+- Streamable HTTP transport for the shared, read-only deployment. **Built** (`serve --transport http`), tested end to end with the SDK client.
 - Go reader and single-binary server for the shared deployment.
 - Published benchmark across two or more corpora and all five question shapes, including cases where pull loses.
 

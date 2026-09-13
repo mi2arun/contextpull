@@ -91,7 +91,7 @@ discover → hash → parse → section → classify → write → fts → summa
 
 - Markdown: line-based parser for ATX headings, fenced code, pipe tables, paragraphs. Setext headings supported. Front matter (`---` block at top) parsed for `title` and otherwise dropped. No HTML rendering.
 - Text: paragraphs split on blank lines; lines that are short, title-cased, and followed by a blank line are treated as level-2 headings.
-- PDF: page text via pypdf; headings inferred from short lines in larger font where the extractor exposes size, else none; tables not detected in v1. Page numbers recorded into `heading_path` as `p.12`.
+- PDF (optional `pdf` extra, pypdf): text runs with their font size; the most common size by character count is the body size, runs at least 1.2× larger and under 120 characters become headings, levels assigned by descending size. Tables are not detected, and page numbers are not recorded in v1; sections carry heading paths only. A PDF whose text has one font size yields a single heading-less document, which is still searchable.
 
 **Section.** Rules, in priority order:
 
@@ -197,8 +197,8 @@ Precedence: CLI flags, then environment variables prefixed `CONTEXTPULL_`, then 
 | `section_heading_depth` | 4 | |
 | `index_budget_tokens` | 3000 | |
 | `summarizer` | `offline` | or `provider:model` |
-| `embed_model` | none | enables `--embed` and hybrid search |
-| `transport` | `stdio` | or `http` with `--host --port` |
+| `embed_model` | none | `--embed-model provider:model` at ingest embeds every section (heading path + text, L2-normalised float32) and enables `search(mode="hybrid")`. Hybrid embeds the query at query time with the same model: the one network call ContextPull makes while answering, opt-in by construction. Fusion is reciprocal rank, k = 60, over the lexical hits and the top 4×limit dense neighbours, path filter applied to both. |
+| `transport` | `stdio` | or `http`: streamable HTTP at `/mcp`, stateless sessions, `--host` (default 127.0.0.1) `--port` (default 8765) |
 | `readonly` | true at serve time | |
 
 ## 9. Concurrency and consistency
