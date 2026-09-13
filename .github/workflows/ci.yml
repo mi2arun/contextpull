@@ -8,13 +8,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix: { python: ["3.10", "3.12"] }
+    env:
+      UV_PYTHON: ${{ matrix.python }}   # .python-version pins 3.12 locally; the matrix must win here
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
-      - run: uv sync --extra mcp --extra pdf --python ${{ matrix.python }}
-      - run: uv run python -c "import contextpull.server; print('server import ok')"
-      - run: uv run pytest -q -rs
-      - run: uv run python conformance/run.py check
+      - run: uv sync --all-extras
+      - run: uv run --all-extras python -c "import sys, contextpull.server; print('server import ok on', sys.version.split()[0])"
+      - run: uv run --all-extras pytest -q -rs
+      - run: uv run --all-extras python conformance/run.py check
   node:
     runs-on: ubuntu-latest
     steps:
