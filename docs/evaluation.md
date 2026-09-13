@@ -35,6 +35,22 @@ Drives Claude Code headless with the MCP server attached, the faithful measureme
 - Parses the stream for `tools/call` events to the ContextPull server and collects `read` ids in order.
 - Slower and costlier than the API loop; run on a sample, report both.
 
+## What counts as retrieved for a pull configuration
+
+The first agentic run over the `uv` docs exposed a choice that the design had left implicit. With the default prompt, gpt-5.4-mini averaged 3.6 `search` calls and 0.46 `read` calls per question and answered more than half the questions from search snippets alone, never reading a section. The answers were often right; the snippet of a section whose heading matches the question frequently contains the fact. So "ids the model read" understates what the model was shown, and "ids surfaced by search" overstates what it chose.
+
+We report both, as separate rows, and name them:
+
+| row | `retrieve` returns | measures |
+|---|---|---|
+| **pull, ids read** | sections the model called `read` on, in order | the discipline the design asks for: verbatim evidence before answering |
+| **pull, ids surfaced** | ids read, then ids seen in `search` and `grep` results, in order | what the model was shown; comparable to a push top-k list |
+| **pull, strict reads** | ids read, under a prompt that forbids answering from snippets and citing unread ids | whether the discipline can be enforced by prompt alone, and what it costs in turns and tokens |
+
+The gap between the first two rows is a measurement of snippet leakage. If it stays large, the remedy is in the tool, not the prompt: shorter snippets, or snippets that show heading path only. That is a design change to `search` and would be recorded in a decision record and a store-format bump.
+
+`stats()` also reports `reads_per_query` and `answered_without_reading` so the write-up can state the behaviour, not just the recall.
+
 ## What goes in the table
 
 | column | push rows | pull rows |

@@ -1,0 +1,40 @@
+{
+  "name": "contextpull",
+  "version": "0.1.0",
+  "description": "Pull, don't push. Store-native reader and MCP server for ContextPull stores (SQLite + FTS5). No Python at query time.",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "contextpull": "bin/contextpull.mjs"
+  },
+  "files": [
+    "dist",
+    "bin",
+    "README.md"
+  ],
+  "scripts": {
+    "prebuild": "cp ../../tools.json tools.json",
+    "build": "tsc -p tsconfig.json",
+    "postbuild": "cp tools.json dist/tools.json",
+    "conformance": "node dist/conformance.js ../../conformance/store.sqlite ../../conformance/cases.json"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "better-sqlite3": "^11.0.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.11",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.5.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mi2arun/contextpull",
+    "directory": "sdk/typescript"
+  }
+}

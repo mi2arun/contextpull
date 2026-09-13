@@ -8,7 +8,20 @@ ContextPull ships with a companion, [ragbisect](https://github.com/mi2arun/ragbi
 
 ## Status
 
-M1 and M2 are built: store, ingest, the five operations, CLI, conformance suite, MCP server, Claude Code integration, LLM summaries, protocol client examples. Measurement (M3) is next. See the [roadmap](docs/roadmap.md).
+M1 to M3 are built: store, ingest, the five operations, CLI, conformance suite, MCP server, Claude Code integration, LLM summaries, protocol client examples, ragbisect adapters, and a TypeScript reader and server. See the [roadmap](docs/roadmap.md).
+
+## Measured
+
+uv documentation, 603 sections, 221 self-generated questions, recall@5, from [docs/testing.md](docs/testing.md#m3-measurement):
+
+| config | recall@5 | ms/q | model tokens/q |
+|---|---|---|---|
+| hybrid push (dense + bm25) | 0.964 | 69 | 0 |
+| bm25 push | 0.923 | 5 | 0 |
+| **pull, Claude Code** (10-question sample) | **1.000** | 26,565 | 86,656 |
+| pull, gpt-5.4-mini with reasoning off | 0.045 | 20,663 | 12,405 |
+
+The pull pattern is only as good as the model's willingness to read: a strong agent reads the right section every time; a small no-reasoning model answers from snippets and rarely reads. Push retrieval is nearly free per query; pull costs tens of thousands of tokens. Both facts are in the table on purpose.
 
 ## Try it
 
@@ -56,6 +69,18 @@ Tool definitions for any model API are in `contextpull.tools.TOOLS` (Anthropic s
 2. **Store** is one SQLite file with an FTS5 index whose tokenizer keeps identifiers whole (`--no-cache`, `UV_CACHE_DIR`, `TX-4419`, `3.12`).
 3. **Index** is a token-budgeted table of contents, one line per document, delivered into the model's context. It goes hierarchical when a corpus is too large for the budget.
 4. **Tools**: `index`, `search` (ids and snippets, never bodies), `read` (verbatim), `grep` (exact matches), `neighbours` (the header row, the next clause).
+
+## Node
+
+`sdk/typescript/` is a store-native reader and MCP server in TypeScript over `better-sqlite3`: open the same store file, no Python at query time.
+
+```sh
+cd sdk/typescript && npm install && npm run build
+node bin/contextpull.mjs serve /path/store.sqlite          # or, once published: npx contextpull serve …
+claude mcp add contextpull -- node /path/to/sdk/typescript/bin/contextpull.mjs serve /path/store.sqlite
+```
+
+It passes the same conformance suite as the Python reference and returns identical results over MCP. Ingest stays in Python (`npx contextpull ingest` delegates to `uvx contextpull ingest`).
 
 ## Other languages
 

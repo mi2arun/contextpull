@@ -77,6 +77,34 @@ Reading: the identifier-preserving tokeniser and normalisation do what they were
 
 Bugs found: empty summaries from reasoning tokens eating a small completion budget; index budget too small for real summaries at 81 documents; Go example struct tag applied to two fields.
 
+## M3: measurement
+
+Adapters and harness changes are unit-tested with a mocked model API and a fake `claude` binary (`tests/test_eval.py`, 8 tests): ids read in order, cache replay without a model call, no caching of failed runs, max-turns handling, the Anthropic request shape, strict and surfaced variants, a Claude Code trace parse, a run with no tool calls flagged as an error, and refusal of a server interpreter without the `mcp` extra. An import-hygiene test asserts the core and eval packages never import `mcp`; it caught a real violation on the first run.
+
+### The agentic rows, uv docs, 221 questions, k = 5
+
+| config | recall@5 | mrr@5 | ndcg@5 given hit | faith | n | ms/q | model tok/q | calls/q |
+|---|---|---|---|---|---|---|---|---|
+| bm25 | 0.923 | 0.805 | 0.905 | | 221 | 5 | 0 | 0 |
+| dense, text-embedding-3-small | 0.851 | 0.738 | 0.901 | | 221 | 366 | ≈15 | 0 |
+| hybrid dense + bm25, RRF | **0.964** | 0.821 | 0.889 | | 221 | 69 | ≈15 | 0 |
+| pull, ids read, gpt-5.4-mini, reasoning off | 0.045 | 0.045 | 1.000 | 0.53 | 221 | 20,663 | 12,405 | 4.5 |
+| pull, ids read, Claude Code (10-question seeded sample) | **1.000** | 0.883 | 0.913 | 0.60 | 10 | 26,565 | 86,656 | 4.8 |
+| pull, ids surfaced | pending | | | | | | | |
+| pull, strict reads | pending | | | | | | | |
+
+Two pull rows tell one story. The small model with reasoning off made 4.5 tool calls a question, 3.6 of them `search`, and called `read` on only one question in twenty; it answered from the 20-token snippets, and when it did read, it read the right section (NDCG 1.0 given a hit). Claude Code, on a 10-question sample, searched, read the gold section on every question, and cited it, at about $0.30 a question. The pull pattern is only as good as the model's willingness to read, and the tool gives a weak model an easy way not to.
+
+Cost per question is the other half of the table. Push retrieval costs milliseconds and no model tokens. The pull loop costs 12k to 87k model tokens and 20 to 27 seconds. For a coding agent that already spends that, it is nothing; for a chat widget it is decisive.
+
+**Pending rows.** The OpenAI account ran out of credits partway through the strict-reads run, after the ids-read run completed. The surfaced-ids row needs the loop re-run because the first run predates the field that records surfaced ids. Both are one command each once credits exist, on the 60-question seeded sample used for strict: `ragbisect run … --adapter examples/ragbisect_agentic.py:ApiLoopStrict --sample 60` and the same with `ApiLoopSurfaced`.
+
+### Mistakes made while measuring, and what changed
+
+- The first Claude Code sample cost $6.26 and measured nothing: the adapter launched the MCP server with the ephemeral `uv run` interpreter, which had the core but not the `mcp` extra, so the server never started and Claude Code answered from memory at length. The adapter now verifies the server interpreter can import the server at construction, and a run with zero ContextPull tool calls is recorded as an error and never cached.
+- Adding the strict flag to the cache key orphaned the first run's 221 records; a replay meant to be free recomputed about 100 questions before the records were migrated. Cache keys are now part of what a change to the adapter must consider, and the runner's cache directory is ignored in both repos.
+- Rate limiting made six-way concurrency behave like one-way; wall time per query includes back-off sleeps. The ms/q column for pull rows is therefore an upper bound under contention.
+
 ## Not yet tested
 
 - PDF parsing (M4, no extra installed yet).

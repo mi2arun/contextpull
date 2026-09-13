@@ -1,0 +1,12 @@
+using cached eval set /private/tmp/claude-501/-Users-arunkumars-Documents-GitHub-portx-stagewise/fcee66d3-a166-43d8-889a-8c189db454cd/scratchpad/rb-cp/questions-2b1ea500f2650b59-n200-s0.jsonl (221 questions)
+evaluating a seeded sample of 10 questions
+judging generation on 10 answers
+config                              recall@5    mrr@5   ndcg@5|hit    faith     n     ms/q    tok/q calls/q
+-----------------------------------------------------------------------------------------------------------
+your adapter                           1.000    0.883        0.913    0.600    10   26,565   86,656     4.8
+  conceptual                             1.000    0.900        0.926    0.600     5   27,193                 
+  exact_lookup                           1.000    0.867        0.900    0.600     5   25,937                 
+Bottleneck for 'your adapter': generation — faithfulness is 0.60 over 10 judged answers. Weakest shape: conceptual (recall 1.00, n=5).
+adapter spend: 855,543 in / 11,020 out tokens, 48 tool calls over 10 queries; ≈ $2.96
+eval set: 221 questions (conceptual=126, exact_lookup=95) from 128 chunks (2 judged unusable, 0 errors); corpus 603 chunks, fingerprint 2b1ea500f2650b59, model openai:gpt-5.4-mini
+spend: 10 API calls; 0 cache hits; 13,222 completion tokens (11,197 in / 2,025 out); 0 embedding tokens; cost: unknown model pricing

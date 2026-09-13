@@ -25,18 +25,12 @@ except ImportError as e:  # pragma: no cover
     raise ImportError('the MCP server needs the "mcp" extra: pip install "contextpull[mcp]"') from e
 
 from . import __version__
+from .index import PREAMBLE
 from .ops import Ops, OpsError
 from .store import Store
 from .tools import TOOLS, call
 
 INDEX_URI = "contextpull://index"
-
-PREAMBLE = (
-    "ContextPull gives you exact sections from a document corpus. The index below lists every document. "
-    "Search for pointers (ids + snippets), read the sections you need verbatim, then answer citing ids like [path.md#3]. "
-    "For comparisons search each document with in=[...] and read both. For codes, flags and identifiers use grep.\n\n"
-)
-
 
 def instructions_text(store: Store) -> str:
     return PREAMBLE + (store.meta_get("index_text") or "(index empty: run contextpull ingest)")

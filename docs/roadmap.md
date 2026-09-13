@@ -34,15 +34,17 @@ Four milestones, each with an acceptance test that a cold reader can run. Order 
 
 Nine MCP tests pass over in-memory streams and a real stdio subprocess, including tool errors that do not crash the server and `serve <directory>` ingesting first. LLM summaries: 81 of 81 `uv` docs summarised by gpt-5.4-mini for about 42k tokens; a re-run costs nothing; the flat index with summaries is ≈2,100 tokens. Protocol client examples run in TypeScript (official SDK), Go (official SDK) and Java (raw JSON-RPC); the direct API loop example answers the comparison question with two reads and two citations. Two bugs found and fixed: reasoning tokens consumed the summary completion budget and returned empty summaries (reasoning is now off for summaries and empty output falls back with the error recorded), and the default index budget of 2,000 tokens was 5% too small for 81 summarised documents (now 3,000). Open from M1: ranking a definition above a usage for identifier searches.
 
-## M3 — Measurement
+## M3 — Measurement · built 2026-09-14
 
 - `contextpull.eval.ApiLoopRetriever`: direct API tool loop, returns section IDs read in order.
 - `contextpull.eval.ClaudeCodeRetriever`: drives `claude -p` headless with the server attached, parses the trace.
 - Cost and latency per query recorded alongside recall.
 - `export-chunks` so the ragbisect eval set is built over ContextPull sections.
-- TypeScript package: store-native reader, `npx contextpull serve`, conformance runner.
+- TypeScript package: store-native reader, `npx contextpull serve`, conformance runner. **Built**: `sdk/typescript/`, 23/23 conformance, identical to Python over MCP.
 
 **Acceptance.** ragbisect prints a table with bm25, dense, hybrid and agentic rows on the `uv` docs. Numbers are reproducible from the cache. The agentic row includes tokens and tool calls per query.
+
+**Result, 2026-09-14.** Met, with two rows pending. The table in [testing.md](testing.md#m3-measurement) has bm25, dense, hybrid, and two agentic rows with tokens, tool calls and wall time per query, all reproducible from the adapter cache. Headline: pull with a no-reasoning small model reads a section on 1 question in 20 (recall over ids read 0.045); pull through Claude Code reads the right section on 10 of 10 sampled questions (recall 1.0) at about $0.30 a question; hybrid push is 0.964 at 69 ms and no model tokens. The strict-reads and surfaced-ids rows are pending on API credits. Also built in M3: ragbisect cost columns and `--sample`; the TypeScript store-native reader and server (23/23 conformance, identical to Python over MCP).
 
 ## M4 — Breadth and publication
 

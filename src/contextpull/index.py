@@ -9,6 +9,12 @@ from __future__ import annotations
 
 from .store import Store
 
+PREAMBLE = (
+    "ContextPull gives you exact sections from a document corpus. The index below lists every document. "
+    "Search for pointers (ids + snippets), read the sections you need verbatim, then answer citing ids like [path.md#3]. "
+    "For comparisons search each document with in=[...] and read both. For codes, flags and identifiers use grep.\n\n"
+)
+
 DISCIPLINE = (
     "Call search(query, in?) to find sections by words or identifiers, read(id) for exact text, "
     "grep(pattern) for codes and flags, neighbours(id) for the header or next clause.\n"

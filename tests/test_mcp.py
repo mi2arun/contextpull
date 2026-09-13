@@ -167,3 +167,29 @@ def test_claude_md_snippet(capsys):
     assert main(["claude-md"]) == 0
     out = capsys.readouterr().out
     assert out.startswith("## Documents (ContextPull)") and "`grep`" in out
+
+
+
+def test_node_server_matches_python_over_mcp(fixture_store):
+    """Cross-implementation: the Node store-native server answers like the Python one."""
+    import shutil
+    from pathlib import Path as _P
+
+    node = shutil.which("node")
+    dist = _P(__file__).resolve().parent.parent / "sdk" / "typescript" / "dist" / "index.js"
+    if not node or not dist.exists():
+        pytest.skip("node or the built TypeScript package is not available")
+
+    async def run(params):
+        async with stdio_client(params) as (read, write):
+            async with ClientSession(read, write) as session:
+                init = await session.initialize()
+                found = json.loads(_text(await session.call_tool("search", {"query": "refund window", "in": ["policies/policy-2024.md", "policies/policy-2025.md"]})))
+                read_ = json.loads(_text(await session.call_tool("read", {"id": "specs.md#1"})))
+                return init.instructions, [h["id"] for h in found["hits"]], read_["text"]
+
+    py = asyncio.run(run(StdioServerParameters(command=sys.executable, args=["-m", "contextpull.cli", "serve", str(fixture_store)])))
+    js = asyncio.run(run(StdioServerParameters(command=node, args=[str(dist.parent.parent / "bin" / "contextpull.mjs"), "serve", str(fixture_store)])))
+    assert py[0] == js[0]  # identical instructions, including the index text
+    assert py[1] == js[1]  # identical ranking
+    assert py[2] == js[2]  # identical verbatim text

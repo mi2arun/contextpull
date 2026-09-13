@@ -1,0 +1,22 @@
+using cached eval set /private/tmp/claude-501/-Users-arunkumars-Documents-GitHub-portx-stagewise/fcee66d3-a166-43d8-889a-8c189db454cd/scratchpad/rb-cp/questions-2b1ea500f2650b59-n200-s0.jsonl (221 questions)
+judging generation on 40 answers
+wrote misses to /private/tmp/claude-501/-Users-arunkumars-Documents-GitHub-portx-stagewise/fcee66d3-a166-43d8-889a-8c189db454cd/scratchpad/apiloop-misses.jsonl
+config                              recall@5    mrr@5   ndcg@5|hit    faith     n     ms/q    tok/q calls/q
+-----------------------------------------------------------------------------------------------------------
+your adapter                           0.045    0.045        1.000    0.525   221   20,663   12,405     4.5
+  conceptual                             0.048    0.048        1.000    0.478   126   20,288                 
+  exact_lookup                           0.042    0.042        1.000    0.588    95   21,161                 
+bm25 (built-in)                        0.923    0.805        0.905      n/a   221        5        —       —
+  conceptual                             0.921    0.811        0.911      n/a   126        6                 
+  exact_lookup                           0.926    0.797        0.896      n/a    95        2                 
+dense (built-in)                       0.851    0.738        0.901      n/a   221      366        —       —
+  conceptual                             0.921    0.821        0.919      n/a   126      359                 
+  exact_lookup                           0.758    0.629        0.873      n/a    95      375                 
+hybrid dense+bm25 rrf (built-in)       0.964    0.821        0.889      n/a   221       69        —       —
+  conceptual                             0.968    0.860        0.916      n/a   126       68                 
+  exact_lookup                           0.958    0.769        0.852      n/a    95       69                 
+Bottleneck for 'your adapter': retrieval — recall@5 is 0.05; 95% of questions never see their gold chunk in the top 5. Weakest shape: exact_lookup (recall 0.04, n=95).
+'hybrid dense+bm25 rrf (built-in)' would raise recall@5 from 0.05 to 0.96 (+0.92).
+adapter spend: 2,684,850 in / 56,727 out tokens, 997 tool calls over 221 queries
+eval set: 221 questions (conceptual=126, exact_lookup=95) from 128 chunks (2 judged unusable, 0 errors); corpus 603 chunks, fingerprint 2b1ea500f2650b59, model openai:gpt-5.4-mini
+spend: 268 API calls; 221 cache hits; 13,855 completion tokens (10,121 in / 3,734 out); 133,823 embedding tokens; cost: unknown model pricing

@@ -33,7 +33,7 @@ The protocol client is available to every language the moment M2 ships and needs
 - Examples under `examples/clients/` for TypeScript, Go and Java showing a protocol client asking one comparison question. Each is under a hundred lines and uses that language's MCP client library or plain HTTP.
 - `tools.json` published in the repo and in the Python wheel.
 
-### Tier 1 — TypeScript, at M3
+### Tier 1 — TypeScript, at M3 · built 2026-09-13
 
 The most requested, because web clients and most MCP tooling are TypeScript, and because `npx contextpull` is the distribution people expect.
 
@@ -42,6 +42,8 @@ npm package `contextpull`:
 - **Reader SDK.** `openStore(path)`, then `index`, `search`, `read`, `grep`, `neighbours` with the same names, arguments and return shapes as Python. Built on `better-sqlite3`, synchronous, no network.
 - **Native MCP server.** `npx contextpull serve <store>` runs the five tools over the store with the official TypeScript MCP SDK. No Python at query time. Same instructions text, same index delivery rules as the Python server.
 - **`npx contextpull ingest`** shells out to `uvx contextpull ingest` and says so, until a native ingest exists. Ingest is where the parsers live; duplicating them is the last thing we port, not the first.
+
+**Status.** `sdk/typescript/` holds the reader (`Store`), the tool dispatcher, the native stdio server and the conformance runner, about 400 lines over `better-sqlite3` and the official TypeScript MCP SDK. It passes all 23 conformance cases, and a cross-implementation test (`tests/test_mcp.py::test_node_server_matches_python_over_mcp`) confirms the Node and Python servers return identical instructions, rankings and section text over MCP. Not yet published to npm.
 - Framework adapters as separate small packages when asked: a LangChain.js retriever, a Vercel AI SDK tool set. Thin, and they call the reader SDK.
 
 ### Tier 2 — Go, at M4
