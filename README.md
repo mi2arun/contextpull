@@ -4,6 +4,8 @@ Pull, don't push. ContextPull turns a folder of documents into something an LLM 
 
 Zero runtime dependencies. One SQLite file. Works offline.
 
+ContextPull ships with a companion, [stagewise](https://github.com/mi2arun/stagewise): a neutral benchmark harness that builds an eval set from your corpus and scores ContextPull next to bm25, dense and hybrid pipelines. Two names, one project, kept apart so the measurement stays independent of the thing it measures.
+
 ## Status
 
 M1 and M2 are built: store, ingest, the five operations, CLI, conformance suite, MCP server, Claude Code integration, LLM summaries, protocol client examples. Measurement (M3) is next. See the [roadmap](docs/roadmap.md).
