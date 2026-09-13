@@ -1,0 +1,20 @@
+# npm publish with provenance. Needs an npm access token (Automation type) stored as the
+# repository secret NPM_TOKEN, or npm trusted publishing configured for this workflow.
+# Then: git tag npm-v0.1.0 && git push --tags   (or run manually)
+name: publish-npm
+on:
+  push: { tags: ["npm-v*"] }
+  workflow_dispatch:
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions: { id-token: write, contents: read }
+    defaults: { run: { working-directory: sdk/typescript } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, registry-url: "https://registry.npmjs.org" }
+      - run: npm ci
+      - run: npm run build && npm run conformance
+      - run: npm publish --access public --provenance
+        env: { NODE_AUTH_TOKEN: "${{ secrets.NPM_TOKEN }}" }

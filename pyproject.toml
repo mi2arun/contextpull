@@ -33,6 +33,9 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/contextpull"]
 
+[tool.hatch.build.targets.sdist]
+exclude = ["benchmarks/", "sdk/", "conformance/store.sqlite", "examples/clients/", "scripts/", ".github/"]
+
 [dependency-groups]
 dev = ["pytest>=8", "pypdf>=4"]
 

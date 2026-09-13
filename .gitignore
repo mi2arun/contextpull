@@ -10,5 +10,4 @@ node_modules/
 go.sum
 sdk/typescript/dist/
 sdk/typescript/tools.json
-sdk/typescript/package-lock.json
 .contextpull-eval/

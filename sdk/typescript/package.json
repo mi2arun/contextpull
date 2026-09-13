@@ -12,13 +12,15 @@
   "files": [
     "dist",
     "bin",
+    "tools.json",
     "README.md"
   ],
   "scripts": {
     "prebuild": "cp ../../tools.json tools.json",
     "build": "tsc -p tsconfig.json",
     "postbuild": "cp tools.json dist/tools.json",
-    "conformance": "node dist/conformance.js ../../conformance/store.sqlite ../../conformance/cases.json"
+    "conformance": "node dist/conformance.js ../../conformance/store.sqlite ../../conformance/cases.json",
+    "prepublishOnly": "npm run build && npm run conformance"
   },
   "engines": {
     "node": ">=20"
@@ -36,5 +38,9 @@
     "type": "git",
     "url": "https://github.com/mi2arun/contextpull",
     "directory": "sdk/typescript"
-  }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "homepage": "https://github.com/mi2arun/contextpull/tree/main/sdk/typescript"
 }
