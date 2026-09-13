@@ -53,7 +53,7 @@ Nine MCP tests pass over in-memory streams and a real stdio subprocess, includin
 - Optional embeddings and `search(mode="hybrid")`. **Built**, tested with a fake embedder; a real-provider run is pending on API credits.
 - Streamable HTTP transport for the shared, read-only deployment. **Built** (`serve --transport http`), tested end to end with the SDK client.
 - Go reader and single-binary server for the shared deployment.
-- Published benchmark across two or more corpora and all five question shapes, including cases where pull loses.
+- Published benchmark across two or more corpora and all five question shapes, including cases where pull loses. **Partly**: ragbisect now generates all five shapes (comparison needs a model call per pair; aggregation and table are computed). The `uv` docs support only 6 structured questions (1 aggregation, 5 table); a table- and version-heavy second corpus is still needed, and the runs need API credits.
 
 **Acceptance.** A second corpus with tables and versioned documents supports all five shapes in ragbisect. The write-up names at least one shape or corpus where hybrid push is the better choice and says why.
 

@@ -7,6 +7,7 @@ Corpus: `astral-sh/uv` `docs/` (81 Markdown files), ingested by ContextPull into
 | `table-apiloop-and-builtins.txt` | ragbisect output: pull (ids read, gpt-5.4-mini reasoning off) vs bm25, dense, hybrid, all 221 questions |
 | `table-claude-code-sample10.txt` | ragbisect output: pull through Claude Code headless, 10-question seeded sample (`--sample 10 --seed 0`) |
 | `questions.jsonl` | the eval set; gold ids are ContextPull section ids |
+| `table-structured-shapes-search-vs-bm25.txt` | the `uv` docs support only 5 structured questions (all table, no aggregation families, no versioned documents for comparison); ContextPull `search` vs bm25 on them, no model involved |
 | `misses-apiloop.jsonl` | questions where the ids-read row missed, with gold text and what was retrieved |
 
 Reproduce: `contextpull ingest <uv docs> --summarizer openai:gpt-5.4-mini`, `contextpull export-chunks > chunks.jsonl`, then the commands in `examples/ragbisect_agentic.py`. Strict-reads and surfaced-ids rows are pending (API credits ran out); run them with `--sample 60`.

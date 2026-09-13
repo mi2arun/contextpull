@@ -4,7 +4,7 @@ The claim is that pulling beats pushing on the question shapes that matter, at a
 
 ## What ragbisect provides
 
-- An eval set built from the corpus with no hand labelling: conceptual and exact-lookup questions today, comparison, aggregation and table questions in its M4.
+- An eval set built from the corpus with no hand labelling, in all five shapes: conceptual and exact-lookup from one chunk each via a model; comparison from cross-document near-duplicate pairs, phrased by a model, gold is both chunks; aggregation over identifier families and table cells, computed with no model at all. `--shapes` selects; shapes a corpus cannot support are skipped with a reason.
 - Stage metrics: recall@k, MRR@k, NDCG@k conditioned on a hit, faithfulness by LLM judge.
 - Built-in push configurations: bm25, dense, hybrid with reciprocal rank fusion.
 - A one-method adapter protocol: `retrieve(query, k) -> list[str]` of chunk ids.
