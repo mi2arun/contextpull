@@ -22,7 +22,7 @@ FONTS = '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="s
 
 def chrome(title: str, body: str, active: str, depth: int = 0, extra_head: str = "", description: str = "") -> str:
     rel = "../" * depth
-    links = [("index.html", "ContextPull", "home"), ("demo.html", "Demo", "demo"), ("docs/index.html", "Docs", "docs"), ("ragbisect.html", "ragbisect", "ragbisect")]
+    links = [("index.html", "ContextPull", "home"), ("demo.html", "Demo", "demo"), ("docs/index.html", "Docs", "docs"), ("blog/index.html", "Blog", "blog"), ("ragbisect.html", "ragbisect", "ragbisect")]
     nav = "".join(f'<a href="{rel}{h}"{" class=\"active\"" if k == active else ""}>{t}</a>' for h, t, k in links)
     nav += '<a href="https://github.com/mi2arun/contextpull">GitHub</a>'
     return f"""<!doctype html>
@@ -134,6 +134,26 @@ def build_demo() -> None:
     (OUT / "demo.html").write_text(chrome("ContextPull demo — push vs pull", body, "demo", description="Watch one comparison question go through classic push RAG and ContextPull's pull loop side by side."))
 
 
+def build_blog() -> None:
+    (OUT / "blog").mkdir(parents=True, exist_ok=True)
+    posts = sorted((SRC / "blog").glob("*.md"), reverse=True)
+    items = []
+    for md in posts:
+        text = md.read_text()
+        m = re.match(r"# (.*)\n", text)
+        title = m.group(1)
+        date = md.name[:10]
+        slug = md.stem[11:]
+        body_md = text[m.end():]
+        summary = re.search(r"^\*(.*?)\*\s*$", body_md, re.M)
+        html_body = render_md(body_md, {})
+        body = f'<div class="wrap docs" style="grid-template-columns: minmax(0, 1fr); max-width: 860px"><article class="doc"><div class="eyebrow">{date}</div><h1>{html.escape(title)}</h1>{html_body}</article></div>'
+        (OUT / "blog" / f"{slug}.html").write_text(chrome(f"{title} · ContextPull", body, "blog", depth=1, description=summary.group(1)[:300] if summary else title))
+        items.append(f'<li><div class="eyebrow">{date}</div><h3><a href="{slug}.html">{html.escape(title)}</a></h3>{f"<p>{html.escape(summary.group(1))}</p>" if summary else ""}</li>')
+    body = f'<div class="wrap" style="max-width: 860px; padding-block: 48px 80px"><div class="eyebrow">blog</div><h1 style="margin: 6px 0 28px">Notes from measuring</h1><ul class="plain" style="list-style: none; padding: 0; display: grid; gap: 28px">{"".join(items)}</ul></div>'
+    (OUT / "blog" / "index.html").write_text(chrome("Blog · ContextPull", body, "blog", depth=1))
+
+
 def main() -> None:
     OUT.mkdir(exist_ok=True)
     shutil.copy(SRC / "site.css", OUT / "site.css")
@@ -142,6 +162,7 @@ def main() -> None:
     build_index()
     build_ragbisect()
     build_demo()
+    build_blog()
     n = len(list(OUT.rglob("*.html")))
     print(f"built {n} pages into {OUT.relative_to(ROOT)}/")
 
