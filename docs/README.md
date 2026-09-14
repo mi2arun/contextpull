@@ -24,7 +24,7 @@ A corpus is ingested once into a single SQLite file: documents, heading-aware se
 
 ## Status
 
-M1 (core, CLI, conformance), M2 (MCP server, Claude Code integration, LLM summaries, protocol client examples) and M3 (agentic rows in the ragbisect table, TypeScript reader and server) built; two benchmark rows pending on API credits; M4 in progress: PDF ingest, hybrid search, HTTP transport and all five ragbisect shapes are built. **Published to PyPI as `contextpull` 0.1.0 on 2026-09-14**; npm: `contextpull` 0.1.0 published 2026-09-14. Name checked free on PyPI, npm and GitHub on 13 September 2026.
+M1 to M3 built and measured; M4 largely built: PDF and Office ingest, hybrid search, HTTP transport, all five ragbisect shapes, TypeScript and Go readers and servers, a second corpus, and a complex-scenario test layer. Published: PyPI `contextpull` and `ragbisect` 0.1.0, npm `contextpull` 0.1.0 (the Office, Go and scenario work is on `main`, not yet released). Website: https://mi2arun.github.io/contextpull/. The first agentic benchmark rows were retracted and recomputed on 2026-09-14; see [Testing](testing.md).
 
 ## Vocabulary
 

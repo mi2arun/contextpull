@@ -56,8 +56,8 @@
 <td>Discover files, parse, section, hash, write. Incremental by document hash.</td>
 </tr>
 <tr>
-<td><code>parse</code></td>
-<td>Markdown, plain text, and (optional extra) PDF into a common block stream: headings, paragraphs, tables, code.</td>
+<td><code>parse</code>, <code>parse_office</code></td>
+<td>Markdown, plain text, docx, xlsx, pptx (standard library) and, with the <code>pdf</code> extra, PDF into a common block stream: headings, paragraphs, tables, code.</td>
 </tr>
 <tr>
 <td><code>section</code></td>
@@ -80,8 +80,16 @@
 <td>Optional one-line document summaries through a provider-agnostic LLM wrapper, cached by document hash. Offline fallback: first heading plus first sentence.</td>
 </tr>
 <tr>
+<td><code>embed</code></td>
+<td>Optional embeddings for hybrid search: OpenAI-compatible endpoint, float32 blobs in the store.</td>
+</tr>
+<tr>
+<td><code>eval</code></td>
+<td>ragbisect adapters: the direct-API tool loop and the Claude Code headless driver. Depends on nothing outside the core.</td>
+</tr>
+<tr>
 <td><code>cli</code></td>
-<td><code>ingest</code>, <code>serve</code>, <code>index</code>, <code>search</code>, <code>read</code>, <code>grep</code>, <code>export-chunks</code>.</td>
+<td><code>ingest</code>, <code>serve</code> (stdio or streamable HTTP), <code>index</code>, <code>search</code>, <code>read</code>, <code>grep</code>, <code>neighbours</code>, <code>export-chunks</code>, <code>claude-md</code>, <code>tools-json</code>.</td>
 </tr>
 </tbody>
 </table></div>
@@ -90,7 +98,7 @@
 <h3 id="embedding-recipe">Embedding recipe</h3>
 <p>Documentation and one runnable example, <code>examples/direct_api_loop.py</code>, showing how a custom client puts the index in a system prompt and exposes the five tools to a model through the Anthropic or OpenAI API. It uses the same <code>tools</code> schemas, so a tool the MCP server knows is a tool the recipe knows.</p>
 <h3 id="other-languages">Other languages</h3>
-<p>The store file is the contract (ADR 009). TypeScript and Go get store-native readers and servers; every other language can use the Python server as a sidecar over MCP or HTTP on day one. See <a href="sdk-plan.html">Multi-language SDK plan</a>.</p>
+<p>The store file is the contract (ADR 009). Store-native readers and servers exist in TypeScript (<code>sdk/typescript</code>, on npm) and Go (<code>sdk/go</code>, a single static binary); both pass the same two conformance suites as Python and return identical results over MCP. Every other language can use any of the three servers over MCP or HTTP. See <a href="sdk-plan.html">Multi-language SDK plan</a>.</p>
 <h3 id="evaluation-adapters">Evaluation adapters</h3>
 <p>Package <code>contextpull.eval</code>. Two ragbisect adapters, one driving a direct API loop and one driving Claude Code headless. Described in <a href="evaluation.html">Evaluation</a>.</p>
 <h2 id="data-flow">Data flow</h2>

@@ -46,13 +46,15 @@ Package `contextpull`. Zero runtime dependencies.
 |---|---|
 | `store` | Open, create, migrate the SQLite file. All reads and writes go through here. |
 | `ingest` | Discover files, parse, section, hash, write. Incremental by document hash. |
-| `parse` | Markdown, plain text, and (optional extra) PDF into a common block stream: headings, paragraphs, tables, code. |
+| `parse`, `parse_office` | Markdown, plain text, docx, xlsx, pptx (standard library) and, with the `pdf` extra, PDF into a common block stream: headings, paragraphs, tables, code. |
 | `section` | Turn blocks into size-bounded sections with heading paths and stable ordinals. Never splits inside a table or a code block. |
 | `index` | Build the token-budgeted table of contents from document summaries; hierarchical when the flat form does not fit. |
 | `ops` | The five operations as plain functions over a `Store`. |
 | `tools` | JSON schemas and descriptions for the five tools. Imported by every surface. |
 | `summarize` | Optional one-line document summaries through a provider-agnostic LLM wrapper, cached by document hash. Offline fallback: first heading plus first sentence. |
-| `cli` | `ingest`, `serve`, `index`, `search`, `read`, `grep`, `export-chunks`. |
+| `embed` | Optional embeddings for hybrid search: OpenAI-compatible endpoint, float32 blobs in the store. |
+| `eval` | ragbisect adapters: the direct-API tool loop and the Claude Code headless driver. Depends on nothing outside the core. |
+| `cli` | `ingest`, `serve` (stdio or streamable HTTP), `index`, `search`, `read`, `grep`, `neighbours`, `export-chunks`, `claude-md`, `tools-json`. |
 
 ### MCP surface
 
@@ -64,7 +66,7 @@ Documentation and one runnable example, `examples/direct_api_loop.py`, showing h
 
 ### Other languages
 
-The store file is the contract (ADR 009). TypeScript and Go get store-native readers and servers; every other language can use the Python server as a sidecar over MCP or HTTP on day one. See [Multi-language SDK plan](sdk-plan.md).
+The store file is the contract (ADR 009). Store-native readers and servers exist in TypeScript (`sdk/typescript`, on npm) and Go (`sdk/go`, a single static binary); both pass the same two conformance suites as Python and return identical results over MCP. Every other language can use any of the three servers over MCP or HTTP. See [Multi-language SDK plan](sdk-plan.md).
 
 ### Evaluation adapters
 

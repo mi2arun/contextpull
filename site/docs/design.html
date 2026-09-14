@@ -138,6 +138,13 @@
 </tr>
 </tbody>
 </table></div>
+<h2 id="what-measurement-has-taught-so-far">What measurement has taught so far</h2>
+<ul>
+<li><strong>Snippets leak.</strong> With 20-token snippets, a small model answers from the search result on about a quarter of factoid questions instead of reading; prompt rules do not change this. Snippet size is a design lever, not a prompt lever (roadmap).</li>
+<li><strong>Reading is precise, recall is the problem.</strong> When the small model reads, it reads the right section (NDCG 0.96 given a hit); Claude Code reads the right section every time. The pull pattern's quality is set by the model's decision to read, and the tool must make reading the cheapest good option.</li>
+<li><strong>Complex questions are where pull earns its cost.</strong> Both models passed all six multi-section scenarios; on single-fact questions hybrid push is as good and a hundred times cheaper.</li>
+<li><strong>Duplicate content is the eval set's main distortion</strong>, in both corpora: the same table or the same fact in several places makes any single gold arbitrary. ragbisect now skips repeated table keys and repeated identifiers; recall remains a lower bound.</li>
+</ul>
 <h2 id="success-criteria-for-v1">Success criteria for v1</h2>
 <ul>
 <li>Ingest the <code>uv</code> documentation and one PDF-heavy corpus with no manual steps.</li>

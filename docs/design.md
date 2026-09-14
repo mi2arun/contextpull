@@ -73,6 +73,13 @@ Each is expanded in a decision record under `adr/`.
 | Prior art overlap | Differentiate on structure-preserving sections, citations, and published measurements |
 | Single gold chunk in evaluation undercounts recall | Documented; identifier dedupe and rarity filter in ragbisect; misses dumped for inspection |
 
+## What measurement has taught so far
+
+- **Snippets leak.** With 20-token snippets, a small model answers from the search result on about a quarter of factoid questions instead of reading; prompt rules do not change this. Snippet size is a design lever, not a prompt lever (roadmap).
+- **Reading is precise, recall is the problem.** When the small model reads, it reads the right section (NDCG 0.96 given a hit); Claude Code reads the right section every time. The pull pattern's quality is set by the model's decision to read, and the tool must make reading the cheapest good option.
+- **Complex questions are where pull earns its cost.** Both models passed all six multi-section scenarios; on single-fact questions hybrid push is as good and a hundred times cheaper.
+- **Duplicate content is the eval set's main distortion**, in both corpora: the same table or the same fact in several places makes any single gold arbitrary. ragbisect now skips repeated table keys and repeated identifiers; recall remains a lower bound.
+
 ## Success criteria for v1
 
 - Ingest the `uv` documentation and one PDF-heavy corpus with no manual steps.

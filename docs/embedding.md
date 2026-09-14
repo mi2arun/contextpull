@@ -61,7 +61,7 @@ Open the store read-only in your request handlers; SQLite in WAL mode serves con
 
 ## Measure before you ship
 
-The pull pattern depends on the model reading sections rather than answering from snippets. Our benchmark saw a small model with reasoning off read one section in twenty. Before committing a product to it, run [ragbisect](https://github.com/mi2arun/ragbisect) against your corpus and your model through `examples/ragbisect_agentic.py`; it takes an afternoon and tells you the recall, the cost per question and whether the model actually reads.
+The pull pattern depends on the model reading sections rather than answering from snippets. Our benchmark measured a small model with reasoning off at recall 0.62 over sections read against 0.96 for a hybrid push pipeline, with most of the gap being snippets answered from rather than read; Claude Code read the right section on every sampled question. Before committing a product to it, run [ragbisect](https://github.com/mi2arun/ragbisect) against your corpus and your model through `examples/ragbisect_agentic.py`; it takes an afternoon and tells you the recall, the cost per question and whether the model actually reads.
 
 ## Versioning
 

@@ -1,0 +1,9 @@
+scenario                               reads ok  answer ok  calls  reads  detail
+comparison across versions             True      True       8      6      
+aggregation across files               True      True       3      2      
+table cell                             True      True       6      3      
+procedure next step                    True      True       2      1      
+cross-format lookup in a spreadsheet   True      True       5      3      
+multi-hop across reference and policy  True      True       7      4      
+
+6/6 scenarios passed | 31 tool calls, 462,499 in / 6,526 out tokens, ≈ $1.59 | model claude-code-default

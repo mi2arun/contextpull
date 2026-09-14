@@ -81,7 +81,7 @@ concepts/cache.md            Cache · how uv decides the cache dir, pruning, CI 
   &quot;hint&quot;: null
 }
 </code></pre>
-<p>Empty <code>hits</code> come with a <code>hint</code>: try <code>grep</code> for exact codes, drop the <code>in</code> filter, or use fewer words.</p>
+<p>Snippets are 20 tokens with the matched terms marked. They are pointers, not evidence; a model that answers from them instead of calling <code>read</code> loses recall on multi-value questions (measured, see testing). Empty <code>hits</code> come with a <code>hint</code>: try <code>grep</code> for exact codes, drop the <code>in</code> filter, or use fewer words.</p>
 <p><strong>Example.</strong> Comparison question, two years named:</p>
 <pre><code>search(&quot;refund window&quot;, in=[&quot;policy-2024.md&quot;, &quot;policy-2025.md&quot;])
 </code></pre>

@@ -51,12 +51,19 @@ Nine MCP tests pass over in-memory streams and a real stdio subprocess, includin
 - PDF ingest through the `pdf` extra; table detection in PDFs where the extractor exposes it. **Built** (headings from font size; no table detection or page numbers yet).
 - Office files (docx, xlsx, pptx) with the standard library. **Built** 2026-09-14, prompted by an integrator's air-gapped document-intelligence PoC; with an [embedding guide](embedding.md) and an access-control example.
 - Hierarchical index for corpora past the budget; `index(prefix)` drill-down. **Built in M1/M2** (flat, compact, hierarchical, budget always honoured).
-- Optional embeddings and `search(mode="hybrid")`. **Built**, tested with a fake embedder; a real-provider run is pending on API credits.
+- Optional embeddings and `search(mode="hybrid")`. **Built** and measured with real text-embedding-3-small vectors: ContextPull hybrid 0.946 on the uv docs.
 - Streamable HTTP transport for the shared, read-only deployment. **Built** (`serve --transport http`), tested end to end with the SDK client.
 - Go reader and single-binary server for the shared deployment. **Built** 2026-09-14: `sdk/go/`, 23/23 conformance, identical to Python over MCP, stdio and HTTP.
 - Published benchmark across two or more corpora and all five question shapes, including cases where pull loses. **Partly**: ragbisect now generates all five shapes (comparison needs a model call per pair; aggregation and table are computed). The `uv` docs support only 5 structured questions (all table); the pydantic docs were added as the second corpus (10 unambiguous table questions, search 1.000 vs bm25 0.900; migration guide available for comparison once credits exist). Model-dependent shapes and the agentic rows on the second corpus need API credits.
 
 **Acceptance.** A second corpus with tables and versioned documents supports all five shapes in ragbisect. The write-up names at least one shape or corpus where hybrid push is the better choice and says why.
+
+## Next design items, from measurement
+
+- **Snippet size in `search`.** The model's own searches surfaced the gold section on 88% of questions but it read it on 62%; a stricter prompt changed nothing. Candidates: shorter snippets, or heading path only. A store-format bump and a conformance update; measure with the surfaced-versus-read gap.
+- **Definition above usage.** bm25 ranks short mentions of an identifier above the reference that defines it (WR-2205, UV_CACHE_DIR). Candidate: a title/summary column in the FTS table, or a small boost for sections whose heading contains the term.
+- **Trigram grep index** if real corpora make the substring scan too slow at scale.
+- **ragbisect identifier families without digits** (pydantic's error type names), and answer-correctness judging against the eval set's reference answers.
 
 ## Later, only if M1–M4 land and people use it
 

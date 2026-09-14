@@ -14,5 +14,8 @@ The central claim is that the model chooses what it reads. If `search` returned 
 - The tool trace is a faithful record of what informed the answer; citations are exact.
 - The model must be told the discipline; every tool description carries it.
 
+## Measured consequence (2026-09-14)
+On the uv docs a small model saw the gold section in its own search results on 88% of questions and read it on 62%; the 20-token snippet was often enough to answer from. The decision stands, since the alternative (returning bodies) would make the gap invisible rather than smaller, but snippet length is now an open design item.
+
 ## Alternatives
 - **Return bodies for the top 1–3 hits.** Fewer round trips, but it reintroduces unrequested content and blurs the measurement of what the model chose.

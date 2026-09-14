@@ -48,7 +48,7 @@ Find sections by words or identifiers. Returns pointers and snippets, never full
 }
 ```
 
-Empty `hits` come with a `hint`: try `grep` for exact codes, drop the `in` filter, or use fewer words.
+Snippets are 20 tokens with the matched terms marked. They are pointers, not evidence; a model that answers from them instead of calling `read` loses recall on multi-value questions (measured, see testing). Empty `hits` come with a `hint`: try `grep` for exact codes, drop the `in` filter, or use fewer words.
 
 **Example.** Comparison question, two years named:
 
