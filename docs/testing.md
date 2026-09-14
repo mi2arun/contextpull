@@ -105,6 +105,10 @@ Cost per question is the other half of the table. Push retrieval costs milliseco
 - Adding the strict flag to the cache key orphaned the first run's 221 records; a replay meant to be free recomputed about 100 questions before the records were migrated. Cache keys are now part of what a change to the adapter must consider, and the runner's cache directory is ignored in both repos.
 - Rate limiting made six-way concurrency behave like one-way; wall time per query includes back-off sleeps. The ms/q column for pull rows is therefore an upper bound under contention.
 
+## Second corpus: pydantic docs (computed shapes only)
+
+91 files, 802 sections. The table shape produced 10 unambiguous cell questions; ContextPull `search` found the gold section for all 10 (recall@5 1.000, MRR 0.80), bm25 for 9. A first attempt produced 24 questions at 0.50 recall for both configs, and inspection showed every miss was a constraints-table row repeated in ten sections; the generator now skips repeated row keys. No aggregation families: pydantic's error type names carry no digits and the family detector keys on digit patterns. Model-dependent shapes wait on credits. Details in `benchmarks/pydantic-docs-2026-09-14/`.
+
 ## M4 so far
 
 - PDF: a two-page fixture generated with reportlab (`conformance/corpus-pdf/warranty-terms.pdf`, four headings at 15 pt over 11 pt body) ingests into sections with the right heading paths; grep finds `WR-2201`; search finds the exclusions section for "surge".
