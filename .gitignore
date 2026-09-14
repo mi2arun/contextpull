@@ -7,7 +7,7 @@ node_modules/
 *.sqlite-wal
 *.sqlite-shm
 *.class
-go.sum
+examples/clients/go/go.sum
 sdk/typescript/dist/
 sdk/typescript/tools.json
 .contextpull-eval/
