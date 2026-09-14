@@ -554,11 +554,11 @@ body{padding-block:0 0} .wrap{max-width:1080px}</style>
         <tr><td>dense, text-embedding-3-small</td><td>0.851</td><td>0.738</td><td>0.901</td><td>≈ 15</td></tr>
         <tr class="best"><td>hybrid dense + bm25, RRF</td><td>0.964</td><td>0.821</td><td>0.889</td><td>≈ 15</td></tr>
         <tr class="best"><td>ContextPull pull, Claude Code (10-question sample)</td><td>1.000</td><td>0.883</td><td>0.913</td><td>≈ 86,700</td></tr>
-        <tr><td>ContextPull pull, gpt-5.4-mini reasoning off</td><td>0.045</td><td>0.045</td><td>1.000</td><td>≈ 12,400</td></tr>
+        <tr><td>ContextPull pull, gpt-5.4-mini reasoning off</td><td>0.615</td><td>0.585</td><td>0.964</td><td>≈ 10,900</td></tr>
       </tbody>
     </table>
   </div>
-  <p class="bench-meta">Measured on the <code>uv</code> documentation, 603 ContextPull sections, 221 self-generated questions in two shapes, recall@5. Two pull rows, one lesson: a strong agent reads the right section on every sampled question, a small model with reasoning off answers from search snippets and reads on one question in twenty. Push costs milliseconds and no model tokens; pull costs tens of thousands of tokens a question. Full table and the mistakes made while measuring are in the ContextPull docs.</p>
+  <p class="bench-meta">Measured on the <code>uv</code> documentation, 603 ContextPull sections, 221 self-generated questions in two shapes, recall@5. Two pull rows: a strong agent reads the right section on every sampled question; a small model with reasoning off reads the right section when it reads but misses it on 38% of questions. Push costs milliseconds and no model tokens; pull costs tens of thousands of tokens a question. Full table and the mistakes made while measuring are in the ContextPull docs.</p>
 </section>
 
 <!-- ============================== PLAN ============================== -->

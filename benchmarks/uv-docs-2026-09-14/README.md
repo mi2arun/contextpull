@@ -4,14 +4,13 @@ Corpus: `astral-sh/uv` `docs/` (81 Markdown files), ingested by ContextPull into
 
 | file | what |
 |---|---|
-| `table-apiloop-and-builtins.txt` | ragbisect output: pull (ids read, gpt-5.4-mini reasoning off) vs bm25, dense, hybrid, all 221 questions |
+| `table-apiloop-and-builtins.txt` | ragbisect output: pull (ids read, gpt-5.4-mini reasoning off) vs bm25, dense, hybrid, all 221 questions. **Corrected run** with the fixed adapter (recall 0.615); the earlier file showing 0.045 came from a threading bug that made every tool call fail and has been replaced |
 | `table-claude-code-sample10.txt` | ragbisect output: pull through Claude Code headless, 10-question seeded sample (`--sample 10 --seed 0`) |
 | `questions.jsonl` | the eval set; gold ids are ContextPull section ids |
 | `table-structured-shapes-search-vs-bm25.txt` | the `uv` docs support only 5 structured questions (all table, no aggregation families, no versioned documents for comparison); ContextPull `search` vs bm25 on them, no model involved |
-| `table-apiloop-strict-sample60.txt` | pull, ids read, strict prompt forbidding answers from snippets, 60-question seeded sample: recall 0.050, no better than the default prompt |
 | `table-hybrid-search-real-embeddings.txt` | ContextPull `search(mode=hybrid)` with real text-embedding-3-small vectors: 0.946, between its lexical 0.927 and ragbisect's hybrid 0.964 |
 | `misses-apiloop.jsonl` | questions where the ids-read row missed, with gold text and what was retrieved |
 
-Reproduce: `contextpull ingest <uv docs> --summarizer openai:gpt-5.4-mini`, `contextpull export-chunks > chunks.jsonl`, then the commands in `examples/ragbisect_agentic.py`. The surfaced-ids row is in `table-apiloop-surfaced-sample60.txt` once recomputed with the versioned cache key (the first attempt replayed records that predate the field).
+Reproduce: `contextpull ingest <uv docs> --summarizer openai:gpt-5.4-mini`, `contextpull export-chunks > chunks.jsonl`, then the commands in `examples/ragbisect_agentic.py`. Strict-reads and surfaced-ids rows are being recomputed with the fixed adapter and will be added here.
 
 Reading of the result is in `docs/testing.md`, section "M3: measurement".

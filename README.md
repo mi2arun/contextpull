@@ -21,9 +21,9 @@ uv documentation, 603 sections, 221 self-generated questions, recall@5, from [do
 | hybrid push (dense + bm25) | 0.964 | 69 | 0 |
 | bm25 push | 0.923 | 5 | 0 |
 | **pull, Claude Code** (10-question sample) | **1.000** | 26,565 | 86,656 |
-| pull, gpt-5.4-mini with reasoning off | 0.045 | 20,663 | 12,405 |
+| pull, gpt-5.4-mini with reasoning off | 0.615 | 16,023 | 10,891 |
 
-The pull pattern is only as good as the model's willingness to read: a strong agent reads the right section every time; a small no-reasoning model answers from snippets and rarely reads. Push retrieval is nearly free per query; pull costs tens of thousands of tokens. Both facts are in the table on purpose.
+A strong agent reads the right section every time; a small no-reasoning model reads the right section when it reads (NDCG 0.96 given a hit) but misses the gold section on 38% of questions. Push retrieval is nearly free per query; pull costs tens of thousands of tokens. Both facts are in the table on purpose. An earlier version of this table showed 0.045 for the small model; that number came from a threading bug in the benchmark adapter and is retracted in `docs/testing.md`.
 
 ## Try it
 

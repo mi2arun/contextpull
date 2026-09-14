@@ -63,6 +63,8 @@
 </table></div>
 <p>The gap between the first two rows is a measurement of snippet leakage. If it stays large, the remedy is in the tool, not the prompt: shorter snippets, or snippets that show heading path only. That is a design change to <code>search</code> and would be recorded in a decision record and a store-format bump.</p>
 <p><code>stats()</code> also reports <code>reads_per_query</code> and <code>answered_without_reading</code> so the write-up can state the behaviour, not just the recall.</p>
+<p><strong>Faithfulness on no-read answers is undefined.</strong> The judge checks the answer against the sections the model read. When nothing was read the context is empty and the verdict is meaningless; the <code>faith</code> column for pull rows should be read together with <code>reads_per_query</code>. A later version will judge against the snippets shown instead.</p>
+<p><strong>Question shape decides what is measured.</strong> Single-fact questions are often answerable from a snippet, so ids-read recall there measures snippet sufficiency as much as discipline. The live scenarios in <code>scripts/scenario_agent.py</code> showed the same small model reading four sections for a version comparison. Comparison, aggregation and table questions are where a pull configuration is genuinely tested; weight them accordingly when reading a table.</p>
 <h2 id="what-goes-in-the-table">What goes in the table</h2>
 <div class="tbl"><table>
 <thead>

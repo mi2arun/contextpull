@@ -51,6 +51,10 @@ The gap between the first two rows is a measurement of snippet leakage. If it st
 
 `stats()` also reports `reads_per_query` and `answered_without_reading` so the write-up can state the behaviour, not just the recall.
 
+**Faithfulness on no-read answers is undefined.** The judge checks the answer against the sections the model read. When nothing was read the context is empty and the verdict is meaningless; the `faith` column for pull rows should be read together with `reads_per_query`. A later version will judge against the snippets shown instead.
+
+**Question shape decides what is measured.** Single-fact questions are often answerable from a snippet, so ids-read recall there measures snippet sufficiency as much as discipline. The live scenarios in `scripts/scenario_agent.py` showed the same small model reading four sections for a version comparison. Comparison, aggregation and table questions are where a pull configuration is genuinely tested; weight them accordingly when reading a table.
+
 ## What goes in the table
 
 | column | push rows | pull rows |

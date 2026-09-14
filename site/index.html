@@ -65,10 +65,10 @@ ops.search("refund window", in_=["policy-2025.md"])</code></pre></div>
       <tr class="best"><td>hybrid push · dense + bm25, RRF</td><td class="num">0.964</td><td class="num">0.821</td><td class="num">69</td><td class="num">0</td><td class="num">0</td></tr>
       <tr><td>bm25 push</td><td class="num">0.923</td><td class="num">0.805</td><td class="num">5</td><td class="num">0</td><td class="num">0</td></tr>
       <tr><td>dense push · text-embedding-3-small</td><td class="num">0.851</td><td class="num">0.738</td><td class="num">366</td><td class="num">≈15</td><td class="num">0</td></tr>
-      <tr><td>pull · gpt-5.4-mini, reasoning off</td><td class="num">0.045</td><td class="num">0.045</td><td class="num">20,663</td><td class="num">12,405</td><td class="num">4.5</td></tr>
+      <tr><td>pull · gpt-5.4-mini, reasoning off</td><td class="num">0.615</td><td class="num">0.585</td><td class="num">16,023</td><td class="num">10,891</td><td class="num">2.7</td></tr>
     </tbody>
   </table></div>
-  <p class="note">A strong agent searched, read the gold section and cited it on every sampled question, at about $0.30 each. A small model with reasoning off answered from search snippets and read a section once in twenty. Push retrieval costs milliseconds and no model tokens; pull costs tens of thousands of tokens a question. Both facts stay in the table. Full write-up, mistakes included, in the <a href="docs/testing.html">testing notes</a>.</p>
+  <p class="note">A strong agent searched, read the gold section and cited it on every sampled question, at about $0.30 each. A small model with reasoning off reads the right section when it reads (NDCG 0.96 given a hit) but misses the gold section on 38% of questions. Push retrieval costs milliseconds and no model tokens; pull costs tens of thousands of tokens a question. Both facts stay in the table. An earlier figure of 0.045 for the small model was a benchmark-harness bug, retracted in the testing notes. Full write-up, mistakes included, in the <a href="docs/testing.html">testing notes</a>.</p>
 </div></section>
 
 <section id="works-with"><div class="wrap">

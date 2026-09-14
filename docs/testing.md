@@ -81,23 +81,24 @@ Bugs found: empty summaries from reasoning tokens eating a small completion budg
 
 Adapters and harness changes are unit-tested with a mocked model API and a fake `claude` binary (`tests/test_eval.py`, 8 tests): ids read in order, cache replay without a model call, no caching of failed runs, max-turns handling, the Anthropic request shape, strict and surfaced variants, a Claude Code trace parse, a run with no tool calls flagged as an error, and refusal of a server interpreter without the `mcp` extra. An import-hygiene test asserts the core and eval packages never import `mcp`; it caught a real violation on the first run.
 
-### The agentic rows, uv docs, 221 questions, k = 5
+### Correction, 2026-09-14
+
+Every "pull, ids read" row published before this date was invalid, and this section replaces them. The eval adapter opened its SQLite connection on the main thread while ragbisect called `retrieve()` from six worker threads; Python's `sqlite3` raised on every tool call, and the loop passed the error text back to the model as if it were tool output. The model never saw a search result in any of those runs. The 0.045 recall and the "reads a section on one question in twenty" reading were artifacts of that bug. Claude Code rows (which talk to the server in its own process) and the live scenario runs (single-threaded) were unaffected. The bug was found by the complex-scenario testing below, when the surfaced-ids row came back impossibly low and a per-call trace showed every tool returning an error. Fixes: a cross-thread connection under a lock, tool failures counted per record, a run whose tool calls all fail is marked as an error and never cached, a trace flag, and a threaded test. Commit `aea010e`.
+
+### The agentic rows, uv docs, 221 questions, k = 5 (corrected)
 
 | config | recall@5 | mrr@5 | ndcg@5 given hit | faith | n | ms/q | model tok/q | calls/q |
 |---|---|---|---|---|---|---|---|---|
-| bm25 | 0.923 | 0.805 | 0.905 | | 221 | 5 | 0 | 0 |
-| dense, text-embedding-3-small | 0.851 | 0.738 | 0.901 | | 221 | 366 | ≈15 | 0 |
-| hybrid dense + bm25, RRF | **0.964** | 0.821 | 0.889 | | 221 | 69 | ≈15 | 0 |
-| pull, ids read, gpt-5.4-mini, reasoning off | 0.045 | 0.045 | 1.000 | 0.53 | 221 | 20,663 | 12,405 | 4.5 |
+| bm25 | 0.923 | 0.805 | 0.905 | | 221 | 4 | 0 | 0 |
+| dense, text-embedding-3-small | 0.851 | 0.738 | 0.901 | | 221 | 57 | ≈15 | 0 |
+| hybrid dense + bm25, RRF | **0.964** | 0.821 | 0.889 | | 221 | 61 | ≈15 | 0 |
+| ContextPull `search`, hybrid mode, real embeddings | 0.946 | 0.815 | 0.897 | | 221 | 494 | ≈15 | 0 |
+| pull, ids read, gpt-5.4-mini, reasoning off | 0.615 | 0.585 | **0.964** | 0.74 | 221 | 16,023 | 10,891 | 2.7 |
 | pull, ids read, Claude Code (10-question seeded sample) | **1.000** | 0.883 | 0.913 | 0.60 | 10 | 26,565 | 86,656 | 4.8 |
-| pull, ids surfaced | pending | | | | | | | |
-| pull, strict reads | pending | | | | | | | |
+| pull, strict reads (60-question sample) | rerunning | | | | | | | |
+| pull, ids surfaced (60-question sample) | rerunning | | | | | | | |
 
-Two pull rows tell one story. The small model with reasoning off made 4.5 tool calls a question, 3.6 of them `search`, and called `read` on only one question in twenty; it answered from the 20-token snippets, and when it did read, it read the right section (NDCG 1.0 given a hit). Claude Code, on a 10-question sample, searched, read the gold section on every question, and cited it, at about $0.30 a question. The pull pattern is only as good as the model's willingness to read, and the tool gives a weak model an easy way not to.
-
-Cost per question is the other half of the table. Push retrieval costs milliseconds and no model tokens. The pull loop costs 12k to 87k model tokens and 20 to 27 seconds. For a coding agent that already spends that, it is nothing; for a chat widget it is decisive.
-
-**Pending rows.** The OpenAI account ran out of credits partway through the strict-reads run, after the ids-read run completed. The surfaced-ids row needs the loop re-run because the first run predates the field that records surfaced ids. Both are one command each once credits exist, on the 60-question seeded sample used for strict: `ragbisect run … --adapter examples/ragbisect_agentic.py:ApiLoopStrict --sample 60` and the same with `ApiLoopSurfaced`.
+Reading the corrected numbers. When the small model reads, it reads the right section: NDCG given a hit is 0.964, the best in the table. Its problem is recall: on 38% of questions the gold section was not among the ids it read, either because it answered from the snippet or because it read a neighbour instead. Faithfulness 0.74 says most answers were supported by what it read. Claude Code read the gold section on every sampled question. Hybrid push still leads on recall at a hundredth of the tokens and a two-hundredth of the latency. Per shape the small model is even: conceptual 0.611, exact-lookup 0.621.
 
 ### Mistakes made while measuring, and what changed
 
@@ -108,6 +109,38 @@ Cost per question is the other half of the table. Push retrieval costs milliseco
 ## Second corpus: pydantic docs (computed shapes only)
 
 91 files, 802 sections. The table shape produced 10 unambiguous cell questions; ContextPull `search` found the gold section for all 10 (recall@5 1.000, MRR 0.80), bm25 for 9. A first attempt produced 24 questions at 0.50 recall for both configs, and inspection showed every miss was a constraints-table row repeated in ten sections; the generator now skips repeated row keys. No aggregation families: pydantic's error type names carry no digits and the family detector keys on digit patterns. Model-dependent shapes wait on credits. Details in `benchmarks/pydantic-docs-2026-09-14/`.
+
+## Scenario testing: complex use cases
+
+Unit tests check parts. Scenario tests check the sequences a competent agent actually performs. The corpus is `conformance/scenarios/corpus`: an engineering knowledge base in six formats (Markdown, text, Word, Excel, PowerPoint, PDF) with two policy versions, an error-code reference split across two files, a twelve-row spec table, a numbered procedure, a parts spreadsheet, duplicated facts across four documents and near-miss identifiers. Three layers:
+
+1. **Deterministic scenarios** (`tests/test_scenarios.py`, offline): comparison across versions with two scoped searches and two reads; aggregation of a code family across files with grep; a table cell with the header intact, and header recovery after the chunker splits the table; a procedure step then the next step via neighbours; one lookup per format; near-miss identifiers kept apart; a duplicated fact surfacing every source; hierarchical index drill-down; the access-control wrapper scoping every operation; an incremental re-ingest while a reader holds the old snapshot.
+2. **A second conformance suite** (`conformance/scenarios/`, 27 cases): the same scenario calls with expected ids, run by the Python, Node and Go readers. All three agree; CI runs both suites in all three.
+3. **Live agent scenarios** (`scripts/scenario_agent.py`): six complex questions through the real pull loop, each with expectations on which sections must be read and what the answer must contain.
+
+| model | scenarios passed | tool calls | reads | tokens |
+|---|---|---|---|---|
+| gpt-5.4-mini, reasoning off, strict prompt | 6 / 6 | 26 | 14 | 37k in / 1.6k out |
+| Claude Code headless | 6 / 6 | 31 | 19 | 462k in / 6.5k out, $1.59 |
+
+**What the live scenarios did.** Both models passed all six complex scenarios, reading two to six sections per question and returning the right values with citations; the small model used 26 tool calls and 37k input tokens for all six, Claude Code 31 calls and $1.59. More importantly, the scenario runs were the control that exposed the threading bug in the benchmark adapter: they ran single-threaded and worked, the benchmark ran threaded and every tool failed. Complex, multi-section questions remain where the pull pattern is genuinely tested; the single-fact shapes measure snippet sufficiency as much as model discipline, and a faithfulness score on a no-read answer is meaningless because the judge sees an empty context.
+
+What the scenarios found in the store: bm25 ranks short mentions of WR-2205 (a procedure step, a manual list) above the reference table that defines it, the known definition-versus-usage gap; the heading paths in the pointers are what let an agent pick the reference. The scenario test asserts the honest state, top five rather than top three.
+
+## Pending rows
+
+The strict-reads and surfaced-ids rows on the uv docs, and the agentic row on the pydantic corpus, are being recomputed with the fixed adapter; the `benchmarks/` directories are updated as each lands. The pydantic five-shape push table below is unaffected (no agentic loop involved).
+
+pydantic docs, 231 questions in five shapes (126 conceptual, 92 exact-lookup, 10 table, 3 comparison):
+
+| config | recall@5 | conceptual | exact-lookup | table | comparison |
+|---|---|---|---|---|---|
+| ContextPull `search` | 0.870 | 0.865 | 0.870 | 1.000 | 0.667 |
+| bm25 | 0.853 | 0.857 | 0.848 | 0.900 | 0.667 |
+| dense | 0.844 | 0.857 | 0.859 | 0.600 | 0.667 |
+| hybrid | **0.900** | 0.913 | 0.891 | 0.800 | 1.000 |
+
+The second corpus repeats the first on the push side: hybrid leads, ContextPull's lexical search beats bm25 and dense alone and wins outright on table cells. Comparison has only three questions here, so its column is indicative only.
 
 ## M4 so far
 
