@@ -1,6 +1,6 @@
 # ContextPull
 
-**Website:** https://mi2arun.github.io/contextpull/ · [demo](https://mi2arun.github.io/contextpull/demo.html) · [docs](https://mi2arun.github.io/contextpull/docs/index.html)
+**Website:** https://mi2arun.github.io/contextpull/ · [demo](https://mi2arun.github.io/contextpull/demo.html) · [docs](https://mi2arun.github.io/contextpull/docs/index.html) · [MCP Registry](https://registry.modelcontextprotocol.io/?search=contextpull) `io.github.mi2arun/contextpull`
 
 Pull, don't push. ContextPull turns a folder of documents into something an LLM agent can pull from the way Claude Code pulls from a codebase: a small index that is always in context, and five tools that return exact sections on demand. The model never receives content it did not ask for.
 

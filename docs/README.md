@@ -24,7 +24,7 @@ A corpus is ingested once into a single SQLite file: documents, heading-aware se
 
 ## Status
 
-M1 to M3 built and measured; M4 largely built: PDF and Office ingest, hybrid search, HTTP transport, all five ragbisect shapes, TypeScript and Go readers and servers, a second corpus, and a complex-scenario test layer. Published: PyPI `contextpull` and `ragbisect` 0.2.0; npm `contextpull` (0.2.0 pending the maintainer's passkey publish). Website: https://mi2arun.github.io/contextpull/. The first agentic benchmark rows were retracted and recomputed on 2026-09-14; see [Testing](testing.md).
+M1 to M3 built and measured; M4 largely built: PDF and Office ingest, hybrid search, HTTP transport, all five ragbisect shapes, TypeScript and Go readers and servers, a second corpus, and a complex-scenario test layer. Published: PyPI `contextpull` and `ragbisect` 0.2.0; npm `contextpull` 0.2.1; listed in the MCP Registry as `io.github.mi2arun/contextpull`. Website: https://mi2arun.github.io/contextpull/. The first agentic benchmark rows were retracted and recomputed on 2026-09-14; see [Testing](testing.md).
 
 ## Vocabulary
 
