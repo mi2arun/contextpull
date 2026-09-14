@@ -43,7 +43,7 @@ npm package `contextpull`:
 - **Native MCP server.** `npx contextpull serve <store>` runs the five tools over the store with the official TypeScript MCP SDK. No Python at query time. Same instructions text, same index delivery rules as the Python server.
 - **`npx contextpull ingest`** shells out to `uvx contextpull ingest` and says so, until a native ingest exists. Ingest is where the parsers live; duplicating them is the last thing we port, not the first.
 
-**Status.** `sdk/typescript/` holds the reader (`Store`), the tool dispatcher, the native stdio server and the conformance runner, about 400 lines over `better-sqlite3` and the official TypeScript MCP SDK. It passes all 23 conformance cases, and a cross-implementation test (`tests/test_mcp.py::test_node_server_matches_python_over_mcp`) confirms the Node and Python servers return identical instructions, rankings and section text over MCP. Not yet published to npm.
+**Status.** `sdk/typescript/` holds the reader (`Store`), the tool dispatcher, the native stdio server and the conformance runner, about 400 lines over `better-sqlite3` and the official TypeScript MCP SDK. It passes all 23 conformance cases, and a cross-implementation test (`tests/test_mcp.py::test_node_server_matches_python_over_mcp`) confirms the Node and Python servers return identical instructions, rankings and section text over MCP. Published to npm as `contextpull` 0.1.0 on 2026-09-14.
 - Framework adapters as separate small packages when asked: a LangChain.js retriever, a Vercel AI SDK tool set. Thin, and they call the reader SDK.
 
 ### Tier 2 — Go, at M4

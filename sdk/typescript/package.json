@@ -36,7 +36,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/mi2arun/contextpull",
+    "url": "git+https://github.com/mi2arun/contextpull.git",
     "directory": "sdk/typescript"
   },
   "publishConfig": {

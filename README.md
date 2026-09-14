@@ -81,12 +81,11 @@ Tool definitions for any model API are in `contextpull.tools.TOOLS` (Anthropic s
 
 ## Node
 
-`sdk/typescript/` is a store-native reader and MCP server in TypeScript over `better-sqlite3`: open the same store file, no Python at query time.
+`sdk/typescript/` is a store-native reader and MCP server in TypeScript over `better-sqlite3`: open the same store file, no Python at query time. Published to npm as `contextpull`.
 
 ```sh
-cd sdk/typescript && npm install && npm run build
-node bin/contextpull.mjs serve /path/store.sqlite          # npm publish pending; see below
-claude mcp add contextpull -- node /path/to/sdk/typescript/bin/contextpull.mjs serve /path/store.sqlite
+npx contextpull serve /path/store.sqlite                   # npm: contextpull 0.1.0
+claude mcp add contextpull -- npx -y contextpull serve /path/store.sqlite
 ```
 
 It passes the same conformance suite as the Python reference and returns identical results over MCP. Ingest stays in Python (`npx contextpull ingest` delegates to `uvx contextpull ingest`).

@@ -17,4 +17,4 @@ const section = store.read(hits[0].id);
 
 Claude Code: `claude mcp add contextpull -- npx contextpull serve /path/store.sqlite`.
 
-Develop: `npm install && npm run build && npm run conformance`.
+Install: `npm install contextpull` (or `npx contextpull …`). Develop: `npm install && npm run build && npm run conformance`.
