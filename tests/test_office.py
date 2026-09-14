@@ -62,7 +62,8 @@ def xlsx_bytes() -> bytes:
 def pptx_bytes() -> bytes:
     NS = 'xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"'
     def sp(text, ph=None):
-        nv = f'<p:nvSpPr><p:nvPr>{f"<p:ph type=\"{ph}\"/>" if ph else ""}</p:nvPr></p:nvSpPr>'
+        ph_xml = '<p:ph type="%s"/>' % ph if ph else ""
+        nv = f"<p:nvSpPr><p:nvPr>{ph_xml}</p:nvPr></p:nvSpPr>"
         return f'<p:sp>{nv}<p:txBody><a:p><a:r><a:t>{text}</a:t></a:r></a:p></p:txBody></p:sp>'
     s1 = f'<p:sld {NS}><p:cSld><p:spTree>{sp("Warranty Overview", "ctrTitle")}{sp("Two-year limited warranty on all R-series models")}</p:spTree></p:cSld></p:sld>'
     s2 = f'<p:sld {NS}><p:cSld><p:spTree>{sp("Claims", "title")}{sp("Open a claim with the serial number")}{sp("Resolved within fifteen business days")}</p:spTree></p:cSld></p:sld>'
