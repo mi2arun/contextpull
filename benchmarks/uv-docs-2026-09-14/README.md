@@ -10,7 +10,10 @@ Corpus: `astral-sh/uv` `docs/` (81 Markdown files), ingested by ContextPull into
 | `table-structured-shapes-search-vs-bm25.txt` | the `uv` docs support only 5 structured questions (all table, no aggregation families, no versioned documents for comparison); ContextPull `search` vs bm25 on them, no model involved |
 | `table-hybrid-search-real-embeddings.txt` | ContextPull `search(mode=hybrid)` with real text-embedding-3-small vectors: 0.946, between its lexical 0.927 and ragbisect's hybrid 0.964 |
 | `misses-apiloop.jsonl` | questions where the ids-read row missed, with gold text and what was retrieved |
+| `table-apiloop-strict-sample60.txt` | pull, ids read, strict prompt, 60-question seeded sample: 0.617, no different from the default prompt |
+| `table-apiloop-surfaced-sample60.txt` | ids the model saw in search/grep results plus ids read, same sample: 0.883 |
 
-Reproduce: `contextpull ingest <uv docs> --summarizer openai:gpt-5.4-mini`, `contextpull export-chunks > chunks.jsonl`, then the commands in `examples/ragbisect_agentic.py`. Strict-reads and surfaced-ids rows are being recomputed with the fixed adapter and will be added here.
+Reproduce: `contextpull ingest <uv docs> --summarizer openai:gpt-5.4-mini`, `contextpull export-chunks > chunks.jsonl`, then the commands in `examples/ragbisect_agentic.py`. | `table-apiloop-strict-sample60.txt` | pull, ids read, strict prompt, 60-question seeded sample: 0.617, no different from the default prompt |
+| `table-apiloop-surfaced-sample60.txt` | pull, ids the model saw in search/grep results plus ids read, same sample: 0.883 |
 
 Reading of the result is in `docs/testing.md`, section "M3: measurement".

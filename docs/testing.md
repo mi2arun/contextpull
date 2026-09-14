@@ -95,10 +95,12 @@ Every "pull, ids read" row published before this date was invalid, and this sect
 | ContextPull `search`, hybrid mode, real embeddings | 0.946 | 0.815 | 0.897 | | 221 | 494 | ≈15 | 0 |
 | pull, ids read, gpt-5.4-mini, reasoning off | 0.615 | 0.585 | **0.964** | 0.74 | 221 | 16,023 | 10,891 | 2.7 |
 | pull, ids read, Claude Code (10-question seeded sample) | **1.000** | 0.883 | 0.913 | 0.60 | 10 | 26,565 | 86,656 | 4.8 |
-| pull, strict reads (60-question sample) | rerunning | | | | | | | |
-| pull, ids surfaced (60-question sample) | rerunning | | | | | | | |
+| pull, strict reads (60-question sample) | 0.617 | 0.592 | 0.970 | 0.67 | 60 | 13,497 | 11,961 | 2.7 |
+| pull, ids surfaced (60-question sample) | 0.883 | 0.782 | 0.915 | | 60 | 4,511 | 14,178 | 3.3 |
 
 Reading the corrected numbers. When the small model reads, it reads the right section: NDCG given a hit is 0.964, the best in the table. Its problem is recall: on 38% of questions the gold section was not among the ids it read, either because it answered from the snippet or because it read a neighbour instead. Faithfulness 0.74 says most answers were supported by what it read. Claude Code read the gold section on every sampled question. Hybrid push still leads on recall at a hundredth of the tokens and a two-hundredth of the latency. Per shape the small model is even: conceptual 0.611, exact-lookup 0.621.
+
+The two sample rows locate the missing recall. Surfaced ids, what the model's own searches showed it, reach 0.883; ids read reach 0.617. So on roughly a quarter of questions the model had the right pointer in front of it and answered from the snippet instead of reading. The strict prompt forbidding that changed nothing (0.617), which means the remedy is in the tool, not the prompt: shorter snippets, or snippets that show the heading path only. That is now the top design item for `search`, and it would be a store-format change.
 
 ### Mistakes made while measuring, and what changed
 
@@ -127,11 +129,9 @@ Unit tests check parts. Scenario tests check the sequences a competent agent act
 
 What the scenarios found in the store: bm25 ranks short mentions of WR-2205 (a procedure step, a manual list) above the reference table that defines it, the known definition-versus-usage gap; the heading paths in the pointers are what let an agent pick the reference. The scenario test asserts the honest state, top five rather than top three.
 
-## Pending rows
+## Second corpus, pydantic docs
 
-The strict-reads and surfaced-ids rows on the uv docs, and the agentic row on the pydantic corpus, are being recomputed with the fixed adapter; the `benchmarks/` directories are updated as each lands. The pydantic five-shape push table below is unaffected (no agentic loop involved).
-
-pydantic docs, 231 questions in five shapes (126 conceptual, 92 exact-lookup, 10 table, 3 comparison):
+231 questions in five shapes (126 conceptual, 92 exact-lookup, 10 table, 3 comparison):
 
 | config | recall@5 | conceptual | exact-lookup | table | comparison |
 |---|---|---|---|---|---|
@@ -139,8 +139,9 @@ pydantic docs, 231 questions in five shapes (126 conceptual, 92 exact-lookup, 10
 | bm25 | 0.853 | 0.857 | 0.848 | 0.900 | 0.667 |
 | dense | 0.844 | 0.857 | 0.859 | 0.600 | 0.667 |
 | hybrid | **0.900** | 0.913 | 0.891 | 0.800 | 1.000 |
+| pull, ids read, gpt-5.4-mini reasoning off (60-question sample) | 0.600 | 0.618 | 0.652 | 0/2 | 0/1 |
 
-The second corpus repeats the first on the push side: hybrid leads, ContextPull's lexical search beats bm25 and dense alone and wins outright on table cells. Comparison has only three questions here, so its column is indicative only.
+The agentic sample matches the uv result: 0.600 overall, NDCG 0.959 given a hit, 2.8 tool calls a question, faithfulness 0.91 on exact lookups and 0.44 on conceptual questions. The second corpus repeats the first on the push side: hybrid leads, ContextPull's lexical search beats bm25 and dense alone and wins outright on table cells. Comparison has only three questions here, so its column is indicative only.
 
 ## M4 so far
 

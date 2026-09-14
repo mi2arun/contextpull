@@ -295,29 +295,30 @@
 </tr>
 <tr>
 <td>pull, strict reads (60-question sample)</td>
-<td>rerunning</td>
-<td></td>
-<td></td>
-<td></td>
-<td></td>
-<td></td>
-<td></td>
-<td></td>
+<td>0.617</td>
+<td>0.592</td>
+<td>0.970</td>
+<td>0.67</td>
+<td>60</td>
+<td>13,497</td>
+<td>11,961</td>
+<td>2.7</td>
 </tr>
 <tr>
 <td>pull, ids surfaced (60-question sample)</td>
-<td>rerunning</td>
+<td>0.883</td>
+<td>0.782</td>
+<td>0.915</td>
 <td></td>
-<td></td>
-<td></td>
-<td></td>
-<td></td>
-<td></td>
-<td></td>
+<td>60</td>
+<td>4,511</td>
+<td>14,178</td>
+<td>3.3</td>
 </tr>
 </tbody>
 </table></div>
 <p>Reading the corrected numbers. When the small model reads, it reads the right section: NDCG given a hit is 0.964, the best in the table. Its problem is recall: on 38% of questions the gold section was not among the ids it read, either because it answered from the snippet or because it read a neighbour instead. Faithfulness 0.74 says most answers were supported by what it read. Claude Code read the gold section on every sampled question. Hybrid push still leads on recall at a hundredth of the tokens and a two-hundredth of the latency. Per shape the small model is even: conceptual 0.611, exact-lookup 0.621.</p>
+<p>The two sample rows locate the missing recall. Surfaced ids, what the model's own searches showed it, reach 0.883; ids read reach 0.617. So on roughly a quarter of questions the model had the right pointer in front of it and answered from the snippet instead of reading. The strict prompt forbidding that changed nothing (0.617), which means the remedy is in the tool, not the prompt: shorter snippets, or snippets that show the heading path only. That is now the top design item for <code>search</code>, and it would be a store-format change.</p>
 <h3 id="mistakes-made-while-measuring-and-what-changed">Mistakes made while measuring, and what changed</h3>
 <ul>
 <li>The first Claude Code sample cost $6.26 and measured nothing: the adapter launched the MCP server with the ephemeral <code>uv run</code> interpreter, which had the core but not the <code>mcp</code> extra, so the server never started and Claude Code answered from memory at length. The adapter now verifies the server interpreter can import the server at construction, and a run with zero ContextPull tool calls is recorded as an error and never cached.</li>
@@ -362,9 +363,8 @@
 </table></div>
 <p><strong>What the live scenarios did.</strong> Both models passed all six complex scenarios, reading two to six sections per question and returning the right values with citations; the small model used 26 tool calls and 37k input tokens for all six, Claude Code 31 calls and $1.59. More importantly, the scenario runs were the control that exposed the threading bug in the benchmark adapter: they ran single-threaded and worked, the benchmark ran threaded and every tool failed. Complex, multi-section questions remain where the pull pattern is genuinely tested; the single-fact shapes measure snippet sufficiency as much as model discipline, and a faithfulness score on a no-read answer is meaningless because the judge sees an empty context.</p>
 <p>What the scenarios found in the store: bm25 ranks short mentions of WR-2205 (a procedure step, a manual list) above the reference table that defines it, the known definition-versus-usage gap; the heading paths in the pointers are what let an agent pick the reference. The scenario test asserts the honest state, top five rather than top three.</p>
-<h2 id="pending-rows">Pending rows</h2>
-<p>The strict-reads and surfaced-ids rows on the uv docs, and the agentic row on the pydantic corpus, are being recomputed with the fixed adapter; the <code>benchmarks/</code> directories are updated as each lands. The pydantic five-shape push table below is unaffected (no agentic loop involved).</p>
-<p>pydantic docs, 231 questions in five shapes (126 conceptual, 92 exact-lookup, 10 table, 3 comparison):</p>
+<h2 id="second-corpus-pydantic-docs">Second corpus, pydantic docs</h2>
+<p>231 questions in five shapes (126 conceptual, 92 exact-lookup, 10 table, 3 comparison):</p>
 <div class="tbl"><table>
 <thead>
 <tr>
@@ -409,9 +409,17 @@
 <td>0.800</td>
 <td>1.000</td>
 </tr>
+<tr>
+<td>pull, ids read, gpt-5.4-mini reasoning off (60-question sample)</td>
+<td>0.600</td>
+<td>0.618</td>
+<td>0.652</td>
+<td>0/2</td>
+<td>0/1</td>
+</tr>
 </tbody>
 </table></div>
-<p>The second corpus repeats the first on the push side: hybrid leads, ContextPull's lexical search beats bm25 and dense alone and wins outright on table cells. Comparison has only three questions here, so its column is indicative only.</p>
+<p>The agentic sample matches the uv result: 0.600 overall, NDCG 0.959 given a hit, 2.8 tool calls a question, faithfulness 0.91 on exact lookups and 0.44 on conceptual questions. The second corpus repeats the first on the push side: hybrid leads, ContextPull's lexical search beats bm25 and dense alone and wins outright on table cells. Comparison has only three questions here, so its column is indicative only.</p>
 <h2 id="m4-so-far">M4 so far</h2>
 <ul>
 <li>PDF: a two-page fixture generated with reportlab (<code>conformance/corpus-pdf/warranty-terms.pdf</code>, four headings at 15 pt over 11 pt body) ingests into sections with the right heading paths; grep finds <code>WR-2201</code>; search finds the exclusions section for "surge".</li>

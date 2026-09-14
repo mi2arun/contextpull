@@ -1,0 +1,8 @@
+evaluating a seeded sample of 60 questions
+config                              recall@5    mrr@5   ndcg@5|hit    faith     n     ms/q    tok/q calls/q
+-----------------------------------------------------------------------------------------------------------
+your adapter                           0.883    0.782        0.915      n/a    60    4,511   14,178     3.3
+Bottleneck for 'your adapter': retrieval — recall@5 is 0.88; 12% of questions never see their gold chunk in the top 5. Weakest shape: exact_lookup (recall 0.87, n=23).
+adapter spend: 833,662 in / 16,995 out tokens, 200 tool calls over 60 queries
+eval set: 221 questions (conceptual=126, exact_lookup=95) from 128 chunks (2 judged unusable, 0 errors); corpus 603 chunks, fingerprint 2b1ea500f2650b59, model openai:gpt-5.4-mini
+spend: 0 API calls; 0 cache hits; 0 completion tokens (0 in / 0 out); 0 embedding tokens; ≈ $0.0000
