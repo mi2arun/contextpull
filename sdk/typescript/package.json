@@ -1,6 +1,6 @@
 {
   "name": "contextpull",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Pull, don't push. Store-native reader and MCP server for ContextPull stores (SQLite + FTS5). No Python at query time.",
   "license": "MIT",
   "type": "module",

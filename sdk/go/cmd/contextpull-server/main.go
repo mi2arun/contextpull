@@ -42,7 +42,7 @@ func buildServer(store *contextpull.Store, logCalls bool) *mcp.Server {
 	if store.Meta("index_text") == "" {
 		instructions = preamble + "(index empty: run contextpull ingest)"
 	}
-	srv := mcp.NewServer(&mcp.Implementation{Name: "contextpull", Version: "0.1.0"}, &mcp.ServerOptions{Instructions: instructions})
+	srv := mcp.NewServer(&mcp.Implementation{Name: "contextpull", Version: "0.2.0"}, &mcp.ServerOptions{Instructions: instructions})
 	_, tools := contextpull.Tools()
 	for _, t := range tools {
 		name := t.Name
