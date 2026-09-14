@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Multi-language SDK plan · ContextPull docs</title><meta name="description" content="Pull, don’t push: exact document sections on demand for LLM agents. MCP server, zero-dependency Python core, Node reader.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap"><link rel="stylesheet" href="../site.css"><script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs"; mermaid.initialize({startOnLoad:true, theme: matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "neutral"});</script>
+</head><body>
+<div class="nav"><div class="wrap"><a class="brand" href="../index.html">ContextPull <small style="color:var(--muted);font-weight:500;font-size:13px"> · pull, don’t push</small></a><div class="nav-links"><a href="../index.html">ContextPull</a><a href="../demo.html">Demo</a><a href="../docs/index.html" class="active">Docs</a><a href="../ragbisect.html">ragbisect</a><a href="https://github.com/mi2arun/contextpull">GitHub</a></div></div></div>
+<div class="wrap docs"><nav><div class="grp">documents</div><a href="index.html">Overview</a><a href="architecture.html">Architecture</a><a href="design.html">Design document</a><a href="system-design.html">System design</a><a href="tool-reference.html">Tool reference</a><a href="evaluation.html">Evaluation</a><a href="testing.html">Testing</a><a href="roadmap.html">Roadmap</a><a href="sdk-plan.html" class="active">Multi-language SDK plan</a><a href="store-format.html">Store format contract</a><a href="adr.html">Decision records</a></nav><article class="doc"><div class="eyebrow">document</div><h1>Multi-language SDK plan</h1><p>Custom clients are not all Python. Web backends are TypeScript, infrastructure teams write Go, enterprises run Java and C#. This plan says how ContextPull reaches them without forking the logic into five slowly diverging copies.</p>
+<h2 id="the-idea-the-store-file-is-the-contract">The idea: the store file is the contract</h2>
+<p>ContextPull's core state is one SQLite file with FTS5. Every mainstream language has a mature SQLite binding with FTS5 compiled in: <code>better-sqlite3</code> for Node, <code>modernc.org/sqlite</code> or <code>mattn/go-sqlite3</code> for Go, <code>sqlite-jdbc</code> for Java and Kotlin, <code>Microsoft.Data.Sqlite</code> for .NET, <code>rusqlite</code> for Rust. The five read operations are a few hundred lines of SQL and glue each. Ingest, which carries the parsers and the summariser, stays in Python.</p>
+<p>So the contract between languages is not a Python API. It is:</p>
+<ol>
+<li><strong>The store format</strong>, versioned, in <a href="store-format.html">store-format.md</a>.</li>
+<li><strong>The operation semantics</strong>, exact enough that two implementations return the same ids in the same order for the same call.</li>
+<li><strong>The tool schemas</strong>, <code>tools.json</code>, generated from Python and embedded verbatim by every SDK.</li>
+<li><strong>A conformance suite</strong>: a fixture corpus, its built store, and a list of calls with expected results. An SDK is done when it passes.</li>
+</ol>
+<p>Anything that passes the suite can call itself a ContextPull reader. Benchmark numbers measured through one SDK then hold for all of them, because the ids and rankings are identical.</p>
+<h2 id="three-ways-to-wrap-and-when-each-applies">Three ways to wrap, and when each applies</h2>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Approach</th>
+<th>What it is</th>
+<th>Needs Python at query time</th>
+<th>Fidelity</th>
+<th>Use when</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Protocol client</strong></td>
+<td>Talk to the Python server over MCP stdio or streamable HTTP</td>
+<td>Yes, as a sidecar</td>
+<td>Exact by construction</td>
+<td>Any language, day one; hosted deployments</td>
+</tr>
+<tr>
+<td><strong>Store-native reader</strong></td>
+<td>Open the SQLite file directly and implement the five operations</td>
+<td>No</td>
+<td>Exact if the conformance suite passes</td>
+<td>Embedded custom clients; <code>npx</code> distribution; single-binary servers</td>
+</tr>
+<tr>
+<td><strong>CLI subprocess</strong></td>
+<td>Spawn <code>contextpull search --json …</code></td>
+<td>Yes</td>
+<td>Exact</td>
+<td>Scripts and glue; never for interactive latency</td>
+</tr>
+</tbody>
+</table></div>
+<p>The protocol client is available to every language the moment M2 ships and needs no per-language work beyond an example. Store-native readers are the real SDK investment and are staged by demand.</p>
+<h2 id="tiers">Tiers</h2>
+<h3 id="tier-0-every-language-at-m2">Tier 0 — every language, at M2</h3>
+<ul>
+<li>The MCP server and streamable HTTP transport.</li>
+<li>Examples under <code>examples/clients/</code> for TypeScript, Go and Java showing a protocol client asking one comparison question. Each is under a hundred lines and uses that language's MCP client library or plain HTTP.</li>
+<li><code>tools.json</code> published in the repo and in the Python wheel.</li>
+</ul>
+<h3 id="tier-1-typescript-at-m3-built-2026-09-13">Tier 1 — TypeScript, at M3 · built 2026-09-13</h3>
+<p>The most requested, because web clients and most MCP tooling are TypeScript, and because <code>npx contextpull</code> is the distribution people expect.</p>
+<p>npm package <code>contextpull</code>:</p>
+<ul>
+<li><strong>Reader SDK.</strong> <code>openStore(path)</code>, then <code>index</code>, <code>search</code>, <code>read</code>, <code>grep</code>, <code>neighbours</code> with the same names, arguments and return shapes as Python. Built on <code>better-sqlite3</code>, synchronous, no network.</li>
+<li><strong>Native MCP server.</strong> <code>npx contextpull serve &lt;store&gt;</code> runs the five tools over the store with the official TypeScript MCP SDK. No Python at query time. Same instructions text, same index delivery rules as the Python server.</li>
+<li><strong><code>npx contextpull ingest</code></strong> shells out to <code>uvx contextpull ingest</code> and says so, until a native ingest exists. Ingest is where the parsers live; duplicating them is the last thing we port, not the first.</li>
+</ul>
+<p><strong>Status.</strong> <code>sdk/typescript/</code> holds the reader (<code>Store</code>), the tool dispatcher, the native stdio server and the conformance runner, about 400 lines over <code>better-sqlite3</code> and the official TypeScript MCP SDK. It passes all 23 conformance cases, and a cross-implementation test (<code>tests/test_mcp.py::test_node_server_matches_python_over_mcp</code>) confirms the Node and Python servers return identical instructions, rankings and section text over MCP. Published to npm as <code>contextpull</code> 0.1.0 on 2026-09-14.
+- Framework adapters as separate small packages when asked: a LangChain.js retriever, a Vercel AI SDK tool set. Thin, and they call the reader SDK.</p>
+<h3 id="tier-2-go-at-m4">Tier 2 — Go, at M4</h3>
+<p>For the shared, read-only deployment: one static binary serving the store over streamable HTTP, built in CI next to the store file.</p>
+<p>Go module <code>github.com/&lt;org&gt;/contextpull-go</code>:</p>
+<ul>
+<li>Reader package with the five operations over <code>modernc.org/sqlite</code> (pure Go, FTS5 included, no cgo).</li>
+<li><code>cmd/contextpull-server</code> speaking MCP streamable HTTP. Same instructions, same delivery rules.</li>
+<li>Read-only by design; ingest remains Python.</li>
+</ul>
+<h3 id="tier-3-java-and-kotlin-c-rust-on-demand">Tier 3 — Java and Kotlin, C#, Rust, on demand</h3>
+<p>Each is a reader plus, optionally, a server. The conformance suite makes them tractable for outside contributors: the spec is executable. We publish the suite and a contributor guide, and accept an SDK into the org when it passes.</p>
+<p>Framework adapters for Python itself, a LangChain <code>BaseRetriever</code> and a LlamaIndex <code>BaseRetriever</code>, are Tier 1 work in the Python package, gated on someone asking.</p>
+<h2 id="what-has-to-be-nailed-down-for-this-to-work">What has to be nailed down for this to work</h2>
+<p>These are the places two implementations would drift. Each gets a precise definition in the system design and a conformance case.</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Concern</th>
+<th>Definition</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Query sanitisation for FTS5</td>
+<td>Tokenise the query with the same identifier-preserving regex used at ingest; each token becomes a quoted FTS5 string; join with <code>OR</code>. If two or more tokens, first run the exact phrase query and take its results in bm25 order, then append the <code>OR</code> query's results not already present. Both use <code>bm25(sections_fts, 2.0, 1.0)</code>.</td>
+</tr>
+<tr>
+<td>Snippet</td>
+<td>FTS5 <code>snippet()</code> over <code>text</code>, 20 tokens, <code>…</code> ellipsis, <code>**</code> markers.</td>
+</tr>
+<tr>
+<td>Path filter</td>
+<td>Each entry in <code>in</code> is matched with SQLite <code>GLOB</code> against <code>documents.path</code>; a filter without wildcard also matches as a prefix ending in <code>/</code>.</td>
+</tr>
+<tr>
+<td>Grep</td>
+<td>Case-insensitive substring via lower-case <code>instr</code>; regex per language's engine on the same candidate set, so regex results may legitimately differ by engine and the conformance suite only covers literal mode.</td>
+</tr>
+<tr>
+<td>Index</td>
+<td>Readers return <code>meta.index_text</code> verbatim; <code>index(prefix)</code> is computed from <code>documents</code> with the documented line format.</td>
+</tr>
+<tr>
+<td>Table header recovery</td>
+<td>Continuations of a split table are found by <code>kind = 'table'</code> and a shared heading path; the header is the first section of that run.</td>
+</tr>
+<tr>
+<td>Ids and ordering</td>
+<td>Ties broken by <code>id</code> ascending after rank.</td>
+</tr>
+<tr>
+<td>Limits</td>
+<td>The same defaults and caps in every SDK; caps live in <code>tools.json</code>.</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="versioning-across-languages">Versioning across languages</h2>
+<ul>
+<li>The store format has its own version, <code>schema_version</code> in <code>meta</code>, semver-like: major bumps mean old readers must refuse; minor bumps add columns or keys and old readers keep working.</li>
+<li>Each SDK declares the store major it supports and refuses others with a message naming both versions.</li>
+<li><code>tools.json</code> carries a version; SDKs embed the file at build time, so a tool change is a release in every language, on purpose.</li>
+<li>The Python package is the reference implementation. When Python and an SDK disagree and both pass the suite, the suite is wrong and gets a new case.</li>
+</ul>
+<h2 id="conformance-suite">Conformance suite</h2>
+<p>Under <code>conformance/</code>:</p>
+<ul>
+<li><code>corpus/</code> a small fixture: versioned policies, a spec sheet with tables, an errors reference with codes, a guide with deep headings.</li>
+<li><code>store.sqlite</code> built from it by the reference implementation, checked in.</li>
+<li><code>cases.json</code>: a list of <code>{op, args, expect}</code> where <code>expect</code> is ids in order, plus for <code>read</code> the text hash and for <code>index</code> the exact text.</li>
+<li>A runner per language that loads the store, executes each case, and diffs. The Python runner is the oracle and runs in CI on every change to <code>ops</code>.</li>
+</ul>
+<h2 id="what-we-are-not-doing">What we are not doing</h2>
+<ul>
+<li>No native ingest outside Python before there is a user who cannot run Python at build time.</li>
+<li>No language-specific tool semantics. If TypeScript wants a sixth tool, Python gets it first and <code>tools.json</code> changes.</li>
+<li>No shared C library or FFI core. SQLite is already the shared native layer; a second one adds build pain for no gain.</li>
+</ul>
+<h2 id="sequence">Sequence</h2>
+<ol>
+<li>M1: publish <code>store-format.md</code>, <code>tools.json</code>, and the first conformance cases with the Python oracle.</li>
+<li>M2: protocol client examples in TypeScript, Go, Java.</li>
+<li>M3: TypeScript reader and native server; the conformance runner in TypeScript.</li>
+<li>M4: Go reader and single-binary server.</li>
+<li>After: accept community SDKs that pass the suite.</li>
+</ol></article></div>
+<footer><div class="wrap"><span>MIT · © 2026 Arunkumar S</span><a href="https://github.com/mi2arun/contextpull">github.com/mi2arun/contextpull</a><a href="https://pypi.org/project/contextpull/">PyPI</a><a href="https://www.npmjs.com/package/contextpull">npm</a><a href="https://github.com/mi2arun/ragbisect">ragbisect</a></div></footer>
+</body></html>

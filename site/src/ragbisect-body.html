@@ -1,0 +1,58 @@
+<header class="wrap hero">
+  <div class="eyebrow">ragbisect · the companion benchmark harness</div>
+  <h1>Bisect a RAG pipeline to find the broken stage.</h1>
+  <div class="hero-grid">
+    <div style="display:grid;gap:18px">
+      <p class="lede">Other tools score a pipeline end to end and tell you it is bad. ragbisect builds an eval set from your own corpus, scores retrieval and ranking separately, compares your pipeline with bm25, dense and hybrid on the same questions, and names the stage that is losing the most. It works on any pipeline and has no dependency on ContextPull.</p>
+      <div class="claim">A diagnostic tool that gives different answers on re-run is not a diagnostic tool. Everything is seeded and cached.</div>
+      <div class="badges">
+        <img alt="PyPI" src="https://img.shields.io/pypi/v/ragbisect?label=pypi&color=f0a93a&labelColor=222c36">
+        <img alt="ci" src="https://img.shields.io/github/actions/workflow/status/mi2arun/ragbisect/ci.yml?label=ci&labelColor=222c36">
+        <img alt="license" src="https://img.shields.io/badge/license-MIT-7ea2cc?labelColor=222c36">
+      </div>
+      <div class="cta"><a class="btn primary" href="https://github.com/mi2arun/ragbisect">GitHub</a><a class="btn" href="https://pypi.org/project/ragbisect/">PyPI</a></div>
+    </div>
+    <div class="install">
+      <div><div class="lbl">Wrap your pipeline in one method</div><pre><code>class MyRetriever:
+    def retrieve(self, query: str, k: int) -> list[str]:
+        """Return chunk IDs, most relevant first."""</code></pre></div>
+      <div><div class="lbl">Run</div><pre><code>uvx ragbisect run --corpus ./docs --adapter ./my_pipeline.py:MyRetriever</code></pre></div>
+    </div>
+  </div>
+</header>
+
+<section><div class="wrap">
+  <div class="sec-head"><div class="eyebrow">the eval set builds itself</div><h2>Five question shapes, because most eval sets only test the first.</h2></div>
+  <div class="tools" style="grid-template-columns:repeat(5,1fr)">
+    <div class="tool"><code>conceptual</code><p>“What’s our approach to refunds?” The one shape dense retrieval handles well. Generated from a chunk by a model.</p></div>
+    <div class="tool"><code>exact_lookup</code><p>“What does error TX-4419 mean?” Embeddings blur identifiers. Generated only when a chunk explains one.</p></div>
+    <div class="tool"><code>comparison</code><p>“What changed between the 2024 and 2025 policy?” Cross-document near-duplicate pairs; gold is both chunks.</p></div>
+    <div class="tool"><code>aggregation</code><p>“How many TX-44xx codes are documented?” Identifier families counted programmatically. No model.</p></div>
+    <div class="tool"><code>table</code><p>“Storage temp for the R-40?” One cell of a pipe table, only where the row key is unambiguous. No model.</p></div>
+  </div>
+  <p class="note">Shapes a corpus cannot support are skipped and the report says why, rather than generating junk questions.</p>
+</div></section>
+
+<section><div class="wrap">
+  <div class="sec-head"><div class="eyebrow">what it prints</div><h2>A stage table and a one-line verdict. Nothing else.</h2></div>
+  <pre><code>config                              recall@5    mrr@5   ndcg@5|hit    faith     n     ms/q    tok/q calls/q
+-----------------------------------------------------------------------------------------------------------
+your adapter                           0.918    0.768        0.878      n/a   207        4        —       —
+  conceptual                             0.943    0.806        0.891      n/a   123        4
+  exact_lookup                           0.859    0.696        0.858      n/a    84        3
+bm25 (built-in)                        0.918    0.768        0.878      n/a   207        2        —       —
+dense (built-in)                       0.903    0.719        0.847      n/a   207      340        —       —
+hybrid dense+bm25 rrf (built-in)       0.952    0.818        0.895      n/a   207       61        —       —
+
+Bottleneck for 'your adapter': ranking — when the gold chunk is retrieved it ranks at NDCG 0.88; MRR@5 is 0.77. Weakest shape: exact_lookup (recall 0.86, n=84).
+'hybrid dense+bm25 rrf (built-in)' would raise recall@5 from 0.92 to 0.95 (+0.03).
+spend: 0 API calls; 1431 cache hits; 0 completion tokens; ≈ $0.0000</code></pre>
+  <p class="note">Retrieval is recall@k: did the gold chunk appear at all. Ranking is NDCG conditioned on a hit: given it was retrieved, how near the top. The stage furthest from its ceiling is the bottleneck. Cost columns show wall time for every config and model tokens and tool calls when an adapter reports them, which is how agentic configurations get compared with push pipelines on cost as well as recall.</p>
+</div></section>
+
+<section><div class="wrap">
+  <div class="two">
+    <div class="card"><h3>Optional adapter extras</h3><ul class="plain"><li><code>generate(query, chunk_ids)</code> to have faithfulness judged by a model.</li><li><code>stats()</code> returning tokens, tool calls and dollars, for the cost columns.</li><li><code>concurrency = N</code> to allow parallel queries.</li><li><code>--sample N</code> for expensive adapters; <code>--shapes</code> to pick question shapes.</li></ul></div>
+    <div class="card"><h3>Engineering choices</h3><ul class="plain"><li>Zero runtime dependencies; installs alongside your pipeline without version conflicts.</li><li>One provider-agnostic LLM wrapper; OpenAI-compatible or Anthropic endpoints.</li><li>Every model call cached in SQLite; re-runs are free until the corpus changes.</li><li>Prints what a run spent in tokens.</li></ul></div>
+  </div>
+</div></section>

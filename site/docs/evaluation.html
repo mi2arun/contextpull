@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Evaluation · ContextPull docs</title><meta name="description" content="Pull, don’t push: exact document sections on demand for LLM agents. MCP server, zero-dependency Python core, Node reader.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap"><link rel="stylesheet" href="../site.css"><script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs"; mermaid.initialize({startOnLoad:true, theme: matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "neutral"});</script>
+</head><body>
+<div class="nav"><div class="wrap"><a class="brand" href="../index.html">ContextPull <small style="color:var(--muted);font-weight:500;font-size:13px"> · pull, don’t push</small></a><div class="nav-links"><a href="../index.html">ContextPull</a><a href="../demo.html">Demo</a><a href="../docs/index.html" class="active">Docs</a><a href="../ragbisect.html">ragbisect</a><a href="https://github.com/mi2arun/contextpull">GitHub</a></div></div></div>
+<div class="wrap docs"><nav><div class="grp">documents</div><a href="index.html">Overview</a><a href="architecture.html">Architecture</a><a href="design.html">Design document</a><a href="system-design.html">System design</a><a href="tool-reference.html">Tool reference</a><a href="evaluation.html" class="active">Evaluation</a><a href="testing.html">Testing</a><a href="roadmap.html">Roadmap</a><a href="sdk-plan.html">Multi-language SDK plan</a><a href="store-format.html">Store format contract</a><a href="adr.html">Decision records</a></nav><article class="doc"><div class="eyebrow">document</div><h1>Evaluation</h1><p>The claim is that pulling beats pushing on the question shapes that matter, at a cost we can state. A claim like that needs the same eval set, the same metrics and the same table for both. ragbisect already does that for push configurations. This document says how the pull configuration joins the table.</p>
+<h2 id="what-ragbisect-provides">What ragbisect provides</h2>
+<ul>
+<li>An eval set built from the corpus with no hand labelling, in all five shapes: conceptual and exact-lookup from one chunk each via a model; comparison from cross-document near-duplicate pairs, phrased by a model, gold is both chunks; aggregation over identifier families and table cells, computed with no model at all. <code>--shapes</code> selects; shapes a corpus cannot support are skipped with a reason.</li>
+<li>Stage metrics: recall@k, MRR@k, NDCG@k conditioned on a hit, faithfulness by LLM judge.</li>
+<li>Built-in push configurations: bm25, dense, hybrid with reciprocal rank fusion.</li>
+<li>A one-method adapter protocol: <code>retrieve(query, k) -&gt; list[str]</code> of chunk ids.</li>
+<li>Cached LLM calls, seeded sampling, printed spend.</li>
+</ul>
+<h2 id="aligning-the-units">Aligning the units</h2>
+<p>ragbisect scores chunk ids. ContextPull returns section ids. They must be the same ids or the comparison is meaningless.</p>
+<p><code>contextpull export-chunks</code> writes <code>{"id", "text", "source"}</code> lines for every section in the store. ragbisect takes that file as its corpus, so the eval set's gold ids are ContextPull section ids, and the built-in push configurations are indexed over exactly the same sections. Sectioning quality is then held constant across all rows; only the controller differs.</p>
+<h2 id="two-agentic-adapters">Two agentic adapters</h2>
+<h3 id="contextpullevalapiloopretriever"><code>contextpull.eval.ApiLoopRetriever</code></h3>
+<p>Runs a tool loop through the Anthropic or OpenAI API using <code>contextpull.tools.TOOLS</code> and <code>ops</code> directly, no server process.</p>
+<ul>
+<li>System prompt: the pull discipline and the index, exactly as the MCP server would deliver them.</li>
+<li>Loop: model call, execute tool calls against the store, append results, repeat until the model answers or <code>max_turns</code> (default 8).</li>
+<li><code>retrieve(query, k)</code> returns the section ids the model <strong>read</strong>, in the order it read them, truncated to k. Ids that only appeared in <code>search</code> results do not count; the model did not look at them.</li>
+<li>Records per question: tool calls by name, input and output tokens, wall time, and the final answer text for faithfulness judging.</li>
+</ul>
+<h3 id="contextpullevalclaudecoderetriever"><code>contextpull.eval.ClaudeCodeRetriever</code></h3>
+<p>Drives Claude Code headless with the MCP server attached, the faithful measurement of the development client.</p>
+<ul>
+<li>Invocation: <code>claude -p "&lt;question&gt;" --mcp-config &lt;generated json&gt; --output-format stream-json</code> with a system prompt appendix asking for ids in the answer.</li>
+<li>Parses the stream for <code>tools/call</code> events to the ContextPull server and collects <code>read</code> ids in order.</li>
+<li>Slower and costlier than the API loop; run on a sample, report both.</li>
+</ul>
+<h2 id="what-counts-as-retrieved-for-a-pull-configuration">What counts as retrieved for a pull configuration</h2>
+<p>The first agentic run over the <code>uv</code> docs exposed a choice that the design had left implicit. With the default prompt, gpt-5.4-mini averaged 3.6 <code>search</code> calls and 0.46 <code>read</code> calls per question and answered more than half the questions from search snippets alone, never reading a section. The answers were often right; the snippet of a section whose heading matches the question frequently contains the fact. So "ids the model read" understates what the model was shown, and "ids surfaced by search" overstates what it chose.</p>
+<p>We report both, as separate rows, and name them:</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>row</th>
+<th><code>retrieve</code> returns</th>
+<th>measures</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>pull, ids read</strong></td>
+<td>sections the model called <code>read</code> on, in order</td>
+<td>the discipline the design asks for: verbatim evidence before answering</td>
+</tr>
+<tr>
+<td><strong>pull, ids surfaced</strong></td>
+<td>ids read, then ids seen in <code>search</code> and <code>grep</code> results, in order</td>
+<td>what the model was shown; comparable to a push top-k list</td>
+</tr>
+<tr>
+<td><strong>pull, strict reads</strong></td>
+<td>ids read, under a prompt that forbids answering from snippets and citing unread ids</td>
+<td>whether the discipline can be enforced by prompt alone, and what it costs in turns and tokens</td>
+</tr>
+</tbody>
+</table></div>
+<p>The gap between the first two rows is a measurement of snippet leakage. If it stays large, the remedy is in the tool, not the prompt: shorter snippets, or snippets that show heading path only. That is a design change to <code>search</code> and would be recorded in a decision record and a store-format bump.</p>
+<p><code>stats()</code> also reports <code>reads_per_query</code> and <code>answered_without_reading</code> so the write-up can state the behaviour, not just the recall.</p>
+<h2 id="what-goes-in-the-table">What goes in the table</h2>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>column</th>
+<th>push rows</th>
+<th>pull rows</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>recall@k, mrr@k, ndcg@k given hit</td>
+<td>as today</td>
+<td>over ids read</td>
+</tr>
+<tr>
+<td>faithfulness</td>
+<td>if the adapter has <code>generate</code></td>
+<td>the loop's final answer</td>
+</tr>
+<tr>
+<td>tokens per query</td>
+<td>embedding tokens</td>
+<td>input + output across the loop</td>
+</tr>
+<tr>
+<td>tool calls per query</td>
+<td>0</td>
+<td>count</td>
+</tr>
+<tr>
+<td>wall time per query</td>
+<td>ms</td>
+<td>ms</td>
+</tr>
+</tbody>
+</table></div>
+<p>Reported overall and per question shape. The per-shape breakdown is where the argument lives: pull should win on comparison and aggregation and be close on conceptual; if it does not, that is the finding.</p>
+<h2 id="fairness-rules">Fairness rules</h2>
+<ol>
+<li>Same sections, same eval set, same k, same corpus fingerprint in every row.</li>
+<li>The pull model gets no information the push pipeline could not have: the index is built from the same documents.</li>
+<li>Push rows may use hybrid retrieval and a reranker if we add one. We compare against the best push configuration, not the weakest.</li>
+<li>Costs are measured, not estimated, and printed by the same code path for all rows.</li>
+<li>Every published number comes with the cache so it can be re-run.</li>
+</ol>
+<h2 id="known-distortions-stated-up-front">Known distortions, stated up front</h2>
+<ul>
+<li><strong>Single gold chunk.</strong> A question generated from one section may be answerable from another that says the same thing. ragbisect dedupes repeated identifiers and rejects very common ones; residual ambiguity makes recall a lower bound for all rows alike.</li>
+<li><strong>Reading is not answering.</strong> A model can read the right section and still answer wrongly. Faithfulness covers part of this; answer correctness against the eval set's reference answers is a later addition.</li>
+<li><strong>Model dependence.</strong> The pull row is a property of the model and the tools together. We name the model in every table.</li>
+</ul>
+<h2 id="publishing">Publishing</h2>
+<p>Results live in <code>benchmarks/</code> as the ragbisect output, the eval set, the cache fingerprint and a short write-up per corpus. The write-up names the shapes and corpora where pull loses or costs more than it returns. That is the positioning, not a caveat.</p></article></div>
+<footer><div class="wrap"><span>MIT · © 2026 Arunkumar S</span><a href="https://github.com/mi2arun/contextpull">github.com/mi2arun/contextpull</a><a href="https://pypi.org/project/contextpull/">PyPI</a><a href="https://www.npmjs.com/package/contextpull">npm</a><a href="https://github.com/mi2arun/ragbisect">ragbisect</a></div></footer>
+</body></html>

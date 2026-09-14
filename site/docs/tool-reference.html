@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tool reference · ContextPull docs</title><meta name="description" content="Pull, don’t push: exact document sections on demand for LLM agents. MCP server, zero-dependency Python core, Node reader.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap"><link rel="stylesheet" href="../site.css"><script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs"; mermaid.initialize({startOnLoad:true, theme: matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "neutral"});</script>
+</head><body>
+<div class="nav"><div class="wrap"><a class="brand" href="../index.html">ContextPull <small style="color:var(--muted);font-weight:500;font-size:13px"> · pull, don’t push</small></a><div class="nav-links"><a href="../index.html">ContextPull</a><a href="../demo.html">Demo</a><a href="../docs/index.html" class="active">Docs</a><a href="../ragbisect.html">ragbisect</a><a href="https://github.com/mi2arun/contextpull">GitHub</a></div></div></div>
+<div class="wrap docs"><nav><div class="grp">documents</div><a href="index.html">Overview</a><a href="architecture.html">Architecture</a><a href="design.html">Design document</a><a href="system-design.html">System design</a><a href="tool-reference.html" class="active">Tool reference</a><a href="evaluation.html">Evaluation</a><a href="testing.html">Testing</a><a href="roadmap.html">Roadmap</a><a href="sdk-plan.html">Multi-language SDK plan</a><a href="store-format.html">Store format contract</a><a href="adr.html">Decision records</a></nav><article class="doc"><div class="eyebrow">document</div><h1>Tool reference</h1><p>Five tools. Definitions live in <code>contextpull.tools.TOOLS</code> and are shared by the MCP server, the embedding recipe and the evaluation adapters. All results include <code>id</code>, <code>heading_path</code> and <code>doc</code> so the model can cite immediately.</p>
+<p>The discipline, as stated in every tool description: <strong>search for pointers, read for text, cite ids.</strong></p>
+<hr />
+<h2 id="index"><code>index</code></h2>
+<p>Return the table of contents. Usually already present in context through server instructions; call it when it is not, or to expand a directory in hierarchical mode.</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Type</th>
+<th>Default</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>prefix</code></td>
+<td>string</td>
+<td>none</td>
+<td>Path prefix to expand, e.g. <code>guides/</code></td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Returns</strong> plain text.</p>
+<pre><code>ContextPull index · 81 documents · 1,017 sections · corpus a3f1f1a6 · summaries: llm
+...
+concepts/cache.md            Cache · how uv decides the cache dir, pruning, CI usage       (22)
+</code></pre>
+<hr />
+<h2 id="search"><code>search</code></h2>
+<p>Find sections by words or identifiers. Returns pointers and snippets, never full text.</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Type</th>
+<th>Default</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>query</code></td>
+<td>string</td>
+<td>required</td>
+<td>Words, phrases in quotes, or identifiers</td>
+</tr>
+<tr>
+<td><code>in</code></td>
+<td>string[]</td>
+<td>all</td>
+<td>Path globs to restrict to, e.g. <code>["policy-2024.md", "guides/*"]</code></td>
+</tr>
+<tr>
+<td><code>limit</code></td>
+<td>integer</td>
+<td>10</td>
+<td>1–50</td>
+</tr>
+<tr>
+<td><code>mode</code></td>
+<td><code>"lexical"</code> | <code>"hybrid"</code></td>
+<td><code>"lexical"</code></td>
+<td>Hybrid requires embeddings; falls back with a note</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Returns</strong></p>
+<pre><code class="language-json">{
+  &quot;hits&quot;: [
+    {&quot;id&quot;: &quot;policy-2025.md#3&quot;, &quot;doc&quot;: &quot;policy-2025.md&quot;, &quot;heading_path&quot;: &quot;Refunds &gt; Refund window&quot;,
+     &quot;snippet&quot;: &quot;…full refund within **14 days** of delivery; store credit …&quot;, &quot;score&quot;: 8.42, &quot;kind&quot;: &quot;prose&quot;}
+  ],
+  &quot;mode&quot;: &quot;lexical&quot;,
+  &quot;hint&quot;: null
+}
+</code></pre>
+<p>Empty <code>hits</code> come with a <code>hint</code>: try <code>grep</code> for exact codes, drop the <code>in</code> filter, or use fewer words.</p>
+<p><strong>Example.</strong> Comparison question, two years named:</p>
+<pre><code>search(&quot;refund window&quot;, in=[&quot;policy-2024.md&quot;, &quot;policy-2025.md&quot;])
+</code></pre>
+<hr />
+<h2 id="read"><code>read</code></h2>
+<p>Return one section verbatim, optionally with neighbours for context.</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Type</th>
+<th>Default</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>id</code></td>
+<td>string</td>
+<td>required</td>
+<td>Section id from <code>search</code>, <code>grep</code> or the index</td>
+</tr>
+<tr>
+<td><code>context</code></td>
+<td>integer</td>
+<td>0</td>
+<td>Also return this many sections before and after, marked <code>context: true</code></td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Returns</strong></p>
+<pre><code class="language-json">{
+  &quot;id&quot;: &quot;policy-2025.md#3&quot;, &quot;doc&quot;: &quot;policy-2025.md&quot;, &quot;heading_path&quot;: &quot;Refunds &gt; Refund window&quot;,
+  &quot;kind&quot;: &quot;prose&quot;, &quot;text&quot;: &quot;Customers may request a full refund within 14 days of delivery. …&quot;,
+  &quot;prev_id&quot;: &quot;policy-2025.md#2&quot;, &quot;next_id&quot;: &quot;policy-2025.md#4&quot;,
+  &quot;context&quot;: []
+}
+</code></pre>
+<p>For a table continuation section, <code>text</code> begins with the header row even though the header lives in an earlier section.</p>
+<hr />
+<h2 id="grep"><code>grep</code></h2>
+<p>Exact substring or regex match across sections. For error codes, flags, environment variables, part numbers, anything an embedding would blur.</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Type</th>
+<th>Default</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>pattern</code></td>
+<td>string</td>
+<td>required</td>
+<td>≤ 200 chars</td>
+</tr>
+<tr>
+<td><code>in</code></td>
+<td>string[]</td>
+<td>all</td>
+<td>Path globs</td>
+</tr>
+<tr>
+<td><code>regex</code></td>
+<td>boolean</td>
+<td>false</td>
+<td>Python <code>re</code> syntax when true</td>
+</tr>
+<tr>
+<td><code>limit</code></td>
+<td>integer</td>
+<td>20</td>
+<td>1–100</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Returns</strong></p>
+<pre><code class="language-json">{
+  &quot;matches&quot;: [
+    {&quot;id&quot;: &quot;errors.md#12&quot;, &quot;doc&quot;: &quot;errors.md&quot;, &quot;heading_path&quot;: &quot;Transaction errors &gt; TX-44xx&quot;,
+     &quot;line&quot;: &quot;TX-4419  Declined by issuer; retry is not permitted.&quot;}
+  ],
+  &quot;truncated&quot;: false
+}
+</code></pre>
+<p>Case-insensitive. A regex that fails to compile, or exceeds the evaluation budget, returns a tool error with the reason.</p>
+<hr />
+<h2 id="neighbours"><code>neighbours</code></h2>
+<p>Sections adjacent to a given one, in document order. For recovering a table's header, the clause before a definition, or the next step in a procedure.</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Type</th>
+<th>Default</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>id</code></td>
+<td>string</td>
+<td>required</td>
+<td></td>
+</tr>
+<tr>
+<td><code>before</code></td>
+<td>integer</td>
+<td>1</td>
+<td>0–5</td>
+</tr>
+<tr>
+<td><code>after</code></td>
+<td>integer</td>
+<td>1</td>
+<td>0–5</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Returns</strong> a list of section objects in the same shape as <code>read</code>, plus <code>header</code> when <code>id</code> is part of a split table:</p>
+<pre><code class="language-json">{&quot;sections&quot;: [...], &quot;header&quot;: {&quot;id&quot;: &quot;specs.md#7&quot;, &quot;text&quot;: &quot;| Model | Storage temp | Voltage |&quot;}}
+</code></pre>
+<hr />
+<h2 id="errors">Errors</h2>
+<p>All tools return MCP tool errors, not exceptions, with a one-line <code>message</code> and where useful a <code>suggestion</code>:</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Condition</th>
+<th>message</th>
+<th>suggestion</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>unknown id</td>
+<td><code>no section 'x'</code></td>
+<td><code>search for it first</code></td>
+</tr>
+<tr>
+<td>bad glob in <code>in</code></td>
+<td><code>invalid path filter 'x'</code></td>
+<td>listing of valid top-level paths</td>
+</tr>
+<tr>
+<td>regex error</td>
+<td><code>pattern does not compile: …</code></td>
+<td><code>set regex=false for a literal match</code></td>
+</tr>
+<tr>
+<td>regex budget exceeded</td>
+<td><code>pattern too expensive</code></td>
+<td><code>narrow with in= or use a literal</code></td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="using-the-schemas-directly">Using the schemas directly</h2>
+<pre><code class="language-python">from contextpull.tools import TOOLS            # list[dict]: name, description, input_schema
+anthropic_tools = TOOLS                        # already in Anthropic shape
+openai_tools = [{&quot;type&quot;: &quot;function&quot;, &quot;function&quot;: {&quot;name&quot;: t[&quot;name&quot;], &quot;description&quot;: t[&quot;description&quot;],
+                 &quot;parameters&quot;: t[&quot;input_schema&quot;]}} for t in TOOLS]
+</code></pre></article></div>
+<footer><div class="wrap"><span>MIT · © 2026 Arunkumar S</span><a href="https://github.com/mi2arun/contextpull">github.com/mi2arun/contextpull</a><a href="https://pypi.org/project/contextpull/">PyPI</a><a href="https://www.npmjs.com/package/contextpull">npm</a><a href="https://github.com/mi2arun/ragbisect">ragbisect</a></div></footer>
+</body></html>

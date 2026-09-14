@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Architecture · ContextPull docs</title><meta name="description" content="Pull, don’t push: exact document sections on demand for LLM agents. MCP server, zero-dependency Python core, Node reader.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap"><link rel="stylesheet" href="../site.css"><script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs"; mermaid.initialize({startOnLoad:true, theme: matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "neutral"});</script>
+</head><body>
+<div class="nav"><div class="wrap"><a class="brand" href="../index.html">ContextPull <small style="color:var(--muted);font-weight:500;font-size:13px"> · pull, don’t push</small></a><div class="nav-links"><a href="../index.html">ContextPull</a><a href="../demo.html">Demo</a><a href="../docs/index.html" class="active">Docs</a><a href="../ragbisect.html">ragbisect</a><a href="https://github.com/mi2arun/contextpull">GitHub</a></div></div></div>
+<div class="wrap docs"><nav><div class="grp">documents</div><a href="index.html">Overview</a><a href="architecture.html" class="active">Architecture</a><a href="design.html">Design document</a><a href="system-design.html">System design</a><a href="tool-reference.html">Tool reference</a><a href="evaluation.html">Evaluation</a><a href="testing.html">Testing</a><a href="roadmap.html">Roadmap</a><a href="sdk-plan.html">Multi-language SDK plan</a><a href="store-format.html">Store format contract</a><a href="adr.html">Decision records</a></nav><article class="doc"><div class="eyebrow">document</div><h1>Architecture</h1><h2 id="the-shape-in-one-picture">The shape in one picture</h2>
+<pre class="mermaid">flowchart LR
+  subgraph corpus[Corpus]
+    F[&quot;.md .txt .pdf&quot;]
+  end
+  subgraph core[&quot;contextpull core (stdlib only)&quot;]
+    I[ingest] --&gt; S[(SQLite store&lt;br/&gt;documents · sections · FTS5 · summaries · index)]
+    S --&gt; OPS[&quot;operations&lt;br/&gt;index · search · read · grep · neighbours&quot;]
+    T[&quot;tool schemas&lt;br/&gt;(one definition)&quot;]
+  end
+  subgraph surfaces[Surfaces]
+    LIB[&quot;Python library&quot;]
+    MCP[&quot;MCP server&lt;br/&gt;stdio · streamable HTTP&quot;]
+    REC[&quot;embedding recipe&lt;br/&gt;direct API loop&quot;]
+  end
+  subgraph hosts[Hosts]
+    CC[&quot;Claude Code&lt;br/&gt;(dev + first measured client)&quot;]
+    OH[&quot;other MCP hosts&quot;]
+    CUST[&quot;custom clients&quot;]
+  end
+  F --&gt; I
+  OPS --&gt; LIB --&gt; CUST
+  OPS --&gt; MCP --&gt; CC
+  MCP --&gt; OH
+  OPS --&gt; REC --&gt; CUST
+  T -.-&gt; MCP
+  T -.-&gt; REC
+  T -.-&gt; EV
+  EV[&quot;ragbisect adapters&quot;] --&gt; MCP
+  EV --&gt; REC
+</pre>
+<p>Three layers, one direction of dependency: surfaces depend on the core, the core depends on nothing but the Python standard library.</p>
+<h2 id="layers">Layers</h2>
+<h3 id="core-library">Core library</h3>
+<p>Package <code>contextpull</code>. Zero runtime dependencies.</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Module</th>
+<th>Responsibility</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>store</code></td>
+<td>Open, create, migrate the SQLite file. All reads and writes go through here.</td>
+</tr>
+<tr>
+<td><code>ingest</code></td>
+<td>Discover files, parse, section, hash, write. Incremental by document hash.</td>
+</tr>
+<tr>
+<td><code>parse</code></td>
+<td>Markdown, plain text, and (optional extra) PDF into a common block stream: headings, paragraphs, tables, code.</td>
+</tr>
+<tr>
+<td><code>section</code></td>
+<td>Turn blocks into size-bounded sections with heading paths and stable ordinals. Never splits inside a table or a code block.</td>
+</tr>
+<tr>
+<td><code>index</code></td>
+<td>Build the token-budgeted table of contents from document summaries; hierarchical when the flat form does not fit.</td>
+</tr>
+<tr>
+<td><code>ops</code></td>
+<td>The five operations as plain functions over a <code>Store</code>.</td>
+</tr>
+<tr>
+<td><code>tools</code></td>
+<td>JSON schemas and descriptions for the five tools. Imported by every surface.</td>
+</tr>
+<tr>
+<td><code>summarize</code></td>
+<td>Optional one-line document summaries through a provider-agnostic LLM wrapper, cached by document hash. Offline fallback: first heading plus first sentence.</td>
+</tr>
+<tr>
+<td><code>cli</code></td>
+<td><code>ingest</code>, <code>serve</code>, <code>index</code>, <code>search</code>, <code>read</code>, <code>grep</code>, <code>export-chunks</code>.</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="mcp-surface">MCP surface</h3>
+<p>Package extra <code>contextpull[mcp]</code>, module <code>contextpull.mcp</code>. Wraps <code>ops</code> with the official MCP Python SDK. Registers the five tools from <code>tools</code>, serves the index through server instructions and as a resource, and speaks stdio by default with streamable HTTP as an option. It holds no logic of its own beyond argument validation and formatting.</p>
+<h3 id="embedding-recipe">Embedding recipe</h3>
+<p>Documentation and one runnable example, <code>examples/direct_api_loop.py</code>, showing how a custom client puts the index in a system prompt and exposes the five tools to a model through the Anthropic or OpenAI API. It uses the same <code>tools</code> schemas, so a tool the MCP server knows is a tool the recipe knows.</p>
+<h3 id="other-languages">Other languages</h3>
+<p>The store file is the contract (ADR 009). TypeScript and Go get store-native readers and servers; every other language can use the Python server as a sidecar over MCP or HTTP on day one. See <a href="sdk-plan.html">Multi-language SDK plan</a>.</p>
+<h3 id="evaluation-adapters">Evaluation adapters</h3>
+<p>Package <code>contextpull.eval</code>. Two ragbisect adapters, one driving a direct API loop and one driving Claude Code headless. Described in <a href="evaluation.html">Evaluation</a>.</p>
+<h2 id="data-flow">Data flow</h2>
+<h3 id="ingest-time">Ingest time</h3>
+<pre class="mermaid">sequenceDiagram
+  participant CLI as contextpull ingest
+  participant P as parse
+  participant S as section
+  participant DB as SQLite
+  participant L as LLM (optional)
+  CLI-&gt;&gt;DB: open or create store, read document hashes
+  loop each file under corpus root
+    CLI-&gt;&gt;CLI: sha256(file); skip if unchanged
+    CLI-&gt;&gt;P: parse(file) → blocks
+    P-&gt;&gt;S: section(blocks, max_chars)
+    S-&gt;&gt;DB: replace document + sections in one transaction
+  end
+  DB-&gt;&gt;DB: rebuild FTS5 rows for changed documents
+  opt summaries enabled
+    CLI-&gt;&gt;L: one call per changed document, cached by hash
+    L--&gt;&gt;DB: summary
+  end
+  CLI-&gt;&gt;DB: build index text, record token count and corpus fingerprint
+</pre>
+<h3 id="query-time-through-an-mcp-host">Query time, through an MCP host</h3>
+<pre class="mermaid">sequenceDiagram
+  participant M as Model
+  participant H as Host (Claude Code)
+  participant CP as ContextPull server
+  participant DB as SQLite
+  H-&gt;&gt;CP: initialize
+  CP--&gt;&gt;H: instructions = index (≤ budget)
+  H-&gt;&gt;M: system prompt includes index
+  M-&gt;&gt;H: search(&quot;refund window&quot;, in=[&quot;policy-2024.md&quot;,&quot;policy-2025.md&quot;])
+  H-&gt;&gt;CP: tools/call search
+  CP-&gt;&gt;DB: FTS5 MATCH, bm25 rank, filtered by path
+  DB--&gt;&gt;CP: ids, headings, snippets
+  CP--&gt;&gt;M: results (no bodies)
+  M-&gt;&gt;H: read(&quot;policy-2024.md#3&quot;)
+  H-&gt;&gt;CP: tools/call read
+  CP-&gt;&gt;DB: select section
+  CP--&gt;&gt;M: verbatim text + heading path + neighbours&#x27; ids
+  M-&gt;&gt;H: read(&quot;policy-2025.md#3&quot;)
+  M--&gt;&gt;H: answer citing [policy-2024.md#3] [policy-2025.md#3]
+</pre>
+<p>The store is opened read-only at query time. Nothing at query time calls an LLM; the host's model is the only model in the loop.</p>
+<h2 id="boundaries-and-what-crosses-them">Boundaries and what crosses them</h2>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Boundary</th>
+<th>Crosses</th>
+<th>Never crosses</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Corpus → store</td>
+<td>Parsed text, structure, hashes</td>
+<td>File handles, absolute paths</td>
+</tr>
+<tr>
+<td>Store → model</td>
+<td>Index text, IDs, headings, snippets, verbatim sections on request</td>
+<td>Whole documents, top-k bodies unasked</td>
+</tr>
+<tr>
+<td>Core → surfaces</td>
+<td>Functions and tool schemas</td>
+<td>SQL, file layout</td>
+</tr>
+<tr>
+<td>Server → host</td>
+<td>MCP messages</td>
+<td>Anything requiring network from the core</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="deployment-shapes">Deployment shapes</h2>
+<ol>
+<li><strong>Local, per project.</strong> <code>.contextpull/store.sqlite</code> next to the docs, server started by the host over stdio. The default and the development setup.</li>
+<li><strong>Shared, read-only.</strong> One store built in CI, served over streamable HTTP to several hosts. Same binary, one flag.</li>
+<li><strong>Embedded.</strong> A custom client imports the library and calls <code>ops</code> directly. No server process.</li>
+</ol>
+<h2 id="where-ragbisect-sits">Where ragbisect sits</h2>
+<p>ragbisect is a separate package and stays framework-agnostic. ContextPull provides <code>export-chunks</code> so ragbisect can build an eval set over exactly the sections the tools return, and provides adapters that satisfy ragbisect's one-method <code>Retriever</code> protocol. The dependency goes one way, from <code>contextpull.eval</code> to <code>ragbisect</code>, and only in the eval extra.</p></article></div>
+<footer><div class="wrap"><span>MIT · © 2026 Arunkumar S</span><a href="https://github.com/mi2arun/contextpull">github.com/mi2arun/contextpull</a><a href="https://pypi.org/project/contextpull/">PyPI</a><a href="https://www.npmjs.com/package/contextpull">npm</a><a href="https://github.com/mi2arun/ragbisect">ragbisect</a></div></footer>
+</body></html>

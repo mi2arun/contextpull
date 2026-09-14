@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Design document · ContextPull docs</title><meta name="description" content="Pull, don’t push: exact document sections on demand for LLM agents. MCP server, zero-dependency Python core, Node reader.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap"><link rel="stylesheet" href="../site.css"><script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs"; mermaid.initialize({startOnLoad:true, theme: matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "neutral"});</script>
+</head><body>
+<div class="nav"><div class="wrap"><a class="brand" href="../index.html">ContextPull <small style="color:var(--muted);font-weight:500;font-size:13px"> · pull, don’t push</small></a><div class="nav-links"><a href="../index.html">ContextPull</a><a href="../demo.html">Demo</a><a href="../docs/index.html" class="active">Docs</a><a href="../ragbisect.html">ragbisect</a><a href="https://github.com/mi2arun/contextpull">GitHub</a></div></div></div>
+<div class="wrap docs"><nav><div class="grp">documents</div><a href="index.html">Overview</a><a href="architecture.html">Architecture</a><a href="design.html" class="active">Design document</a><a href="system-design.html">System design</a><a href="tool-reference.html">Tool reference</a><a href="evaluation.html">Evaluation</a><a href="testing.html">Testing</a><a href="roadmap.html">Roadmap</a><a href="sdk-plan.html">Multi-language SDK plan</a><a href="store-format.html">Store format contract</a><a href="adr.html">Decision records</a></nav><article class="doc"><div class="eyebrow">document</div><h1>Design document</h1><h2 id="problem">Problem</h2>
+<p>Teams put documents behind an LLM and get fluent answers that are sometimes wrong, with no error and no way to tell which part failed. The dominant pattern, retrieval-augmented generation, embeds the raw question, takes the k nearest chunks, and places them in the prompt before the model has reasoned about what it needs. It handles conceptual questions and little else. Exact identifiers blur in embedding space. Comparison questions produce a blend of both sources. Aggregations have no chunk that contains the answer. Table rows lose their headers to the chunker.</p>
+<p>Claude Code demonstrates a different pattern on codebases. A small, always-present index tells the model what exists. The model decides what to look at, reads exact content through tools, refines, and only then writes. Nothing is pushed at it. Iteration replaces guessing.</p>
+<p>ContextPull applies that pattern to arbitrary document corpora and packages it so that any host, or any custom client, can use it without a rewrite.</p>
+<h2 id="goals">Goals</h2>
+<ol>
+<li><strong>The model pulls, nothing pushes.</strong> Content reaches the model only in response to a call the model made.</li>
+<li><strong>Exact and citable.</strong> Every piece of text returned carries a stable section ID. Answers cite IDs.</li>
+<li><strong>Host-agnostic.</strong> Works in Claude Code, in any MCP host, and inside a custom client through the same core.</li>
+<li><strong>Install alongside anything.</strong> Zero runtime dependencies in the core. One SQLite file as the store.</li>
+<li><strong>Measured, not asserted.</strong> The agentic configuration is scored with ragbisect on the same self-built eval set as bm25, dense and hybrid, and the results are published whether or not they flatter us.</li>
+</ol>
+<h2 id="non-goals">Non-goals</h2>
+<ul>
+<li>Not a general RAG framework. No chains, no agents of our own, no prompt templates beyond the embedding recipe.</li>
+<li>Not a vector database. Embeddings are optional and stored in the same SQLite file only to support a hybrid <code>search</code> mode.</li>
+<li>Not a chat UI or a hosted service. The shared-store deployment is a flag on the same server, not a product.</li>
+<li>Not a document editor or a writer. Read-only over the corpus.</li>
+<li>No plugin system, no configuration DSL in v1.</li>
+</ul>
+<h2 id="principles">Principles</h2>
+<p><strong>Small surface.</strong> Five tools. Their schemas are defined once and reused by the MCP server, the embedding recipe and the evaluation adapters. Adding a sixth tool needs a documented failure the five cannot cover.</p>
+<p><strong>Search returns pointers, read returns text.</strong> <code>search</code> never returns bodies. This keeps the model choosing, keeps token use proportional to what was actually needed, and makes the trace legible: you can see what the model looked at.</p>
+<p><strong>Structure survives ingest.</strong> Sections follow headings. Tables and code blocks are never split. Neighbours are one call away. A table row can always recover its header.</p>
+<p><strong>Deterministic where possible.</strong> Same corpus, same settings, same section IDs and same index text. Sectioning has no randomness. Summaries are cached by document hash so re-ingest is stable.</p>
+<p><strong>Degrade honestly.</strong> No LLM available: summaries fall back to first heading plus first sentence and the index says so. Corpus too big for the token budget: the index becomes hierarchical and says so. <code>search</code> finds nothing: the tool says so, and the model can say so.</p>
+<p><strong>The measurement is the moat.</strong> Everyone can build a tool server. Nobody publishes the comparison against the pipeline it replaces, across question shapes, with cost. We will.</p>
+<h2 id="key-decisions">Key decisions</h2>
+<p>Each is expanded in a decision record under <code>adr/</code>.</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>#</th>
+<th>Decision</th>
+<th>Chosen</th>
+<th>Rejected</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>001</td>
+<td>Language and dependency policy</td>
+<td>Python, stdlib-only core, extras for MCP and PDF</td>
+<td>TypeScript-first for npx convenience; a framework dependency for speed of build</td>
+</tr>
+<tr>
+<td>002</td>
+<td>Store and lexical index</td>
+<td>SQLite with FTS5, one file</td>
+<td>Pure-Python BM25 in memory; a vector DB; Postgres</td>
+</tr>
+<tr>
+<td>003</td>
+<td>Packaging of the pattern</td>
+<td>Layered: core library, MCP server, embedding recipe</td>
+<td>MCP server only; library only</td>
+</tr>
+<tr>
+<td>004</td>
+<td>Index delivery</td>
+<td>Server instructions when it fits, <code>index</code> tool and resource always, hierarchical past budget</td>
+<td>A <code>CONTEXTPULL.md</code> written into the project; index tool only</td>
+</tr>
+<tr>
+<td>005</td>
+<td>Search contract</td>
+<td>IDs, heading paths, snippets, scores; no bodies</td>
+<td>Return top-k bodies for fewer round trips</td>
+</tr>
+<tr>
+<td>006</td>
+<td>Section identity</td>
+<td><code>path#ordinal</code> plus content hash</td>
+<td>Content-hash IDs; UUIDs; byte offsets</td>
+</tr>
+<tr>
+<td>007</td>
+<td>Retrieval modes</td>
+<td>Lexical first via FTS5 bm25; embeddings optional for hybrid</td>
+<td>Dense-first; dense-only</td>
+</tr>
+<tr>
+<td>008</td>
+<td>Evaluation</td>
+<td>ragbisect as the harness, agentic row in the same table, losses published</td>
+<td>Custom benchmark; anecdotal demos</td>
+</tr>
+<tr>
+<td>009</td>
+<td>Other languages</td>
+<td>The SQLite store is the contract; native readers per language, ingest stays Python</td>
+<td>Python sidecar only; C core over FFI; service-only interface</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="alternatives-considered-at-the-product-level">Alternatives considered at the product level</h2>
+<p><strong>Just write a Claude Code skill or CLAUDE.md instructions.</strong> Tempting and cheap, but it only works in Claude Code, gives the model grep over raw files with no section structure and no citations, and cannot be measured against a push pipeline in a controlled way. ContextPull can produce a CLAUDE.md snippet as a convenience; it is not the product.</p>
+<p><strong>Improve the push pipeline instead.</strong> Hybrid retrieval and reranking do help; ragbisect showed hybrid beating dense on our test corpus. But the failure modes that matter most, comparison and aggregation, are about who controls retrieval, not about ranking quality. A better ranker still returns one list for a question that needs two.</p>
+<p><strong>Build on an existing agentic RAG framework.</strong> LlamaIndex and LangGraph have agentic retrieval. They bring a dependency tree that conflicts with whatever the user already runs, and they do not expose the corpus to an external host over MCP. The point of ContextPull is to install next to anything.</p>
+<h2 id="risks">Risks</h2>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Risk</th>
+<th>Mitigation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Large corpora overflow the index budget</td>
+<td>Hierarchical index by directory; search-first guidance in instructions; measured in the scale tiers</td>
+</tr>
+<tr>
+<td>Latency of several tool round trips</td>
+<td>Acceptable for agent hosts; published as a cost column; <code>read</code> with <code>context</code> reduces calls</td>
+</tr>
+<tr>
+<td>A weak <code>search</code> makes the loop weak</td>
+<td>FTS5 bm25 with identifier-preserving tokenizer; optional hybrid; ragbisect measures <code>search</code> alone as a config</td>
+</tr>
+<tr>
+<td>Hosts differ in whether instructions reach the system prompt</td>
+<td>Index also exposed as tool and resource; instructions tell the model to call <code>index</code> first if it sees none</td>
+</tr>
+<tr>
+<td>Prior art overlap</td>
+<td>Differentiate on structure-preserving sections, citations, and published measurements</td>
+</tr>
+<tr>
+<td>Single gold chunk in evaluation undercounts recall</td>
+<td>Documented; identifier dedupe and rarity filter in ragbisect; misses dumped for inspection</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="success-criteria-for-v1">Success criteria for v1</h2>
+<ul>
+<li>Ingest the <code>uv</code> documentation and one PDF-heavy corpus with no manual steps.</li>
+<li>Claude Code answers a comparison question with two correct citations, visible in the trace.</li>
+<li>The ragbisect table has an agentic row with recall, MRR, NDCG, tokens per query and tool calls per query, next to bm25, dense and hybrid, on at least two corpora and all five question shapes where the corpus supports them.</li>
+<li>At least one published case where pull does not beat hybrid, with the reason.</li>
+</ul></article></div>
+<footer><div class="wrap"><span>MIT · © 2026 Arunkumar S</span><a href="https://github.com/mi2arun/contextpull">github.com/mi2arun/contextpull</a><a href="https://pypi.org/project/contextpull/">PyPI</a><a href="https://www.npmjs.com/package/contextpull">npm</a><a href="https://github.com/mi2arun/ragbisect">ragbisect</a></div></footer>
+</body></html>

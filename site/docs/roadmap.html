@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Roadmap · ContextPull docs</title><meta name="description" content="Pull, don’t push: exact document sections on demand for LLM agents. MCP server, zero-dependency Python core, Node reader.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap"><link rel="stylesheet" href="../site.css"><script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs"; mermaid.initialize({startOnLoad:true, theme: matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "neutral"});</script>
+</head><body>
+<div class="nav"><div class="wrap"><a class="brand" href="../index.html">ContextPull <small style="color:var(--muted);font-weight:500;font-size:13px"> · pull, don’t push</small></a><div class="nav-links"><a href="../index.html">ContextPull</a><a href="../demo.html">Demo</a><a href="../docs/index.html" class="active">Docs</a><a href="../ragbisect.html">ragbisect</a><a href="https://github.com/mi2arun/contextpull">GitHub</a></div></div></div>
+<div class="wrap docs"><nav><div class="grp">documents</div><a href="index.html">Overview</a><a href="architecture.html">Architecture</a><a href="design.html">Design document</a><a href="system-design.html">System design</a><a href="tool-reference.html">Tool reference</a><a href="evaluation.html">Evaluation</a><a href="testing.html">Testing</a><a href="roadmap.html" class="active">Roadmap</a><a href="sdk-plan.html">Multi-language SDK plan</a><a href="store-format.html">Store format contract</a><a href="adr.html">Decision records</a></nav><article class="doc"><div class="eyebrow">document</div><h1>Roadmap</h1><p>Four milestones, each with an acceptance test that a cold reader can run. Order matters: the store must be right before the server, the server before the measurement.</p>
+<h2 id="m1-core-store-and-ingest-built-2026-09-13">M1 — Core store and ingest · built 2026-09-13</h2>
+<ul>
+<li>SQLite schema with migration table.</li>
+<li>Markdown and text parsing to blocks; heading-aware sectioning; tables and code kept whole.</li>
+<li>Stable IDs, content hashes, prev and next pointers.</li>
+<li>FTS5 index with identifier-preserving tokenizer.</li>
+<li><code>ops.search</code>, <code>ops.read</code>, <code>ops.grep</code>, <code>ops.neighbours</code> as functions.</li>
+<li>Flat index with offline summaries; token budget enforced.</li>
+<li>CLI: <code>ingest</code>, <code>index</code>, <code>search</code>, <code>read</code>, <code>grep</code>, <code>export-chunks</code>.</li>
+<li><code>tools.json</code> generated from the Python schemas; <code>store-format.md</code> published; first conformance cases with the Python oracle.</li>
+</ul>
+<p><strong>Acceptance.</strong> Ingest the <code>uv</code> docs (81 files). <code>search "UV_CACHE_DIR"</code> returns the cache section first. <code>read</code> of a table section returns the header row. Re-running ingest with no changes writes nothing and produces byte-identical index text. Unit tests for sectioning invariants.</p>
+<p><strong>Result, 2026-09-13.</strong> 81 documents, 604 sections, 0.3 s. No-change re-ingest: 0 writes, identical index. Table parts carry their header (tested on the fixture; the <code>uv</code> docs have no table over the size limit). Sectioning invariants: unit tests pass; 23 conformance cases pass. A broader campaign (adversarial inputs, 60 randomised seeds, CLI, concurrent reads during ingest, a 98k-section scale run, and a ragbisect quality measurement) is written up in <a href="testing.html">testing.md</a>; it found seven further bugs, all fixed. <strong>One criterion not met as written:</strong> <code>search "UV_CACHE_DIR"</code> ranks the concepts page third, behind two CI caching sections that also use the variable; bm25 prefers the shorter sections. The heading paths (<code>Caching &gt; Cache directory</code> vs <code>Using uv in GitLab CI/CD &gt; Caching</code>) let a model pick the right one from the pointers, which is the pull argument, but ranking a definition above a usage is open work: a summary or title column in the FTS table is the likely fix and is tracked for M2. Two bugs found and fixed by this run: fence info strings with attributes broke code-block detection, and <code>-</code> <code>.</code> as token characters made <code>--no-cache</code> and sentence-final words unsearchable until the indexed columns were normalised. The index went compact rather than flat at 81 documents with offline summaries, which led to the compact mode being added.</p>
+<h2 id="m2-mcp-server-and-claude-code-built-2026-09-13">M2 — MCP server and Claude Code · built 2026-09-13</h2>
+<ul>
+<li><code>contextpull[mcp]</code> extra with the official SDK. Five tools registered from shared schemas.</li>
+<li>Index delivered in server instructions when within budget; <code>index</code> tool and <code>contextpull://index</code> resource always.</li>
+<li>stdio transport. <code>claude mcp add contextpull -- uvx contextpull serve &lt;corpus&gt;</code> works.</li>
+<li>LLM summaries through the provider-agnostic wrapper, cached by document hash.</li>
+<li>Protocol client examples in TypeScript, Go and Java under <code>examples/clients/</code>.</li>
+</ul>
+<p><strong>Acceptance.</strong> In Claude Code, ask a comparison question over a two-version policy corpus. The trace shows <code>search</code> then two <code>read</code> calls and the answer cites both IDs. Ask about an identifier that appears in one section; <code>grep</code> finds it. In-memory MCP client tests for all five tools.</p>
+<p><strong>Result, 2026-09-13.</strong> Both acceptance runs passed through Claude Code headless (<code>claude -p … --mcp-config</code>) over the conformance corpus:</p>
+<ul>
+<li>Comparison question: two <code>search</code> calls scoped with <code>in=</code> to each year, three <code>read</code> calls, answer cites <code>[policies/policy-2024.md#2]</code> and <code>[policies/policy-2025.md#2]</code>. 7 turns, $0.33.</li>
+<li>Identifier question (TX-4419): <code>grep</code>, <code>read</code> with context, a second <code>grep</code>; answer cites <code>[errors.md#1]</code>. 5 turns, $0.23.</li>
+</ul>
+<p>Nine MCP tests pass over in-memory streams and a real stdio subprocess, including tool errors that do not crash the server and <code>serve &lt;directory&gt;</code> ingesting first. LLM summaries: 81 of 81 <code>uv</code> docs summarised by gpt-5.4-mini for about 42k tokens; a re-run costs nothing; the flat index with summaries is ≈2,100 tokens. Protocol client examples run in TypeScript (official SDK), Go (official SDK) and Java (raw JSON-RPC); the direct API loop example answers the comparison question with two reads and two citations. Two bugs found and fixed: reasoning tokens consumed the summary completion budget and returned empty summaries (reasoning is now off for summaries and empty output falls back with the error recorded), and the default index budget of 2,000 tokens was 5% too small for 81 summarised documents (now 3,000). Open from M1: ranking a definition above a usage for identifier searches.</p>
+<h2 id="m3-measurement-built-2026-09-14">M3 — Measurement · built 2026-09-14</h2>
+<ul>
+<li><code>contextpull.eval.ApiLoopRetriever</code>: direct API tool loop, returns section IDs read in order.</li>
+<li><code>contextpull.eval.ClaudeCodeRetriever</code>: drives <code>claude -p</code> headless with the server attached, parses the trace.</li>
+<li>Cost and latency per query recorded alongside recall.</li>
+<li><code>export-chunks</code> so the ragbisect eval set is built over ContextPull sections.</li>
+<li>TypeScript package: store-native reader, <code>npx contextpull serve</code>, conformance runner. <strong>Built</strong>: <code>sdk/typescript/</code>, 23/23 conformance, identical to Python over MCP.</li>
+</ul>
+<p><strong>Acceptance.</strong> ragbisect prints a table with bm25, dense, hybrid and agentic rows on the <code>uv</code> docs. Numbers are reproducible from the cache. The agentic row includes tokens and tool calls per query.</p>
+<p><strong>Result, 2026-09-14.</strong> Met, with two rows pending. The table in <a href="testing.html#m3-measurement">testing.md</a> has bm25, dense, hybrid, and two agentic rows with tokens, tool calls and wall time per query, all reproducible from the adapter cache. Headline: pull with a no-reasoning small model reads a section on 1 question in 20 (recall over ids read 0.045); pull through Claude Code reads the right section on 10 of 10 sampled questions (recall 1.0) at about $0.30 a question; hybrid push is 0.964 at 69 ms and no model tokens. The strict-reads and surfaced-ids rows are pending on API credits. Also built in M3: ragbisect cost columns and <code>--sample</code>; the TypeScript store-native reader and server (23/23 conformance, identical to Python over MCP).</p>
+<h2 id="m4-breadth-and-publication-in-progress-2026-09-14">M4 — Breadth and publication · in progress, 2026-09-14</h2>
+<ul>
+<li>PDF ingest through the <code>pdf</code> extra; table detection in PDFs where the extractor exposes it. <strong>Built</strong> (headings from font size; no table detection or page numbers yet).</li>
+<li>Hierarchical index for corpora past the budget; <code>index(prefix)</code> drill-down. <strong>Built in M1/M2</strong> (flat, compact, hierarchical, budget always honoured).</li>
+<li>Optional embeddings and <code>search(mode="hybrid")</code>. <strong>Built</strong>, tested with a fake embedder; a real-provider run is pending on API credits.</li>
+<li>Streamable HTTP transport for the shared, read-only deployment. <strong>Built</strong> (<code>serve --transport http</code>), tested end to end with the SDK client.</li>
+<li>Go reader and single-binary server for the shared deployment.</li>
+<li>Published benchmark across two or more corpora and all five question shapes, including cases where pull loses. <strong>Partly</strong>: ragbisect now generates all five shapes (comparison needs a model call per pair; aggregation and table are computed). The <code>uv</code> docs support only 5 structured questions (all table); the pydantic docs were added as the second corpus (10 unambiguous table questions, search 1.000 vs bm25 0.900; migration guide available for comparison once credits exist). Model-dependent shapes and the agentic rows on the second corpus need API credits.</li>
+</ul>
+<p><strong>Acceptance.</strong> A second corpus with tables and versioned documents supports all five shapes in ragbisect. The write-up names at least one shape or corpus where hybrid push is the better choice and says why.</p>
+<h2 id="later-only-if-m1m4-land-and-people-use-it">Later, only if M1–M4 land and people use it</h2>
+<ul>
+<li>Reranking inside <code>search</code>.</li>
+<li>Watch mode: re-ingest on file change.</li>
+<li>Per-section access rules for the shared deployment.</li>
+<li>Java/Kotlin, C# and Rust readers as community SDKs that pass the conformance suite.</li>
+</ul></article></div>
+<footer><div class="wrap"><span>MIT · © 2026 Arunkumar S</span><a href="https://github.com/mi2arun/contextpull">github.com/mi2arun/contextpull</a><a href="https://pypi.org/project/contextpull/">PyPI</a><a href="https://www.npmjs.com/package/contextpull">npm</a><a href="https://github.com/mi2arun/ragbisect">ragbisect</a></div></footer>
+</body></html>

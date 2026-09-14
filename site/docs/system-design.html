@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>System design · ContextPull docs</title><meta name="description" content="Pull, don’t push: exact document sections on demand for LLM agents. MCP server, zero-dependency Python core, Node reader.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap"><link rel="stylesheet" href="../site.css"><script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs"; mermaid.initialize({startOnLoad:true, theme: matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "neutral"});</script>
+</head><body>
+<div class="nav"><div class="wrap"><a class="brand" href="../index.html">ContextPull <small style="color:var(--muted);font-weight:500;font-size:13px"> · pull, don’t push</small></a><div class="nav-links"><a href="../index.html">ContextPull</a><a href="../demo.html">Demo</a><a href="../docs/index.html" class="active">Docs</a><a href="../ragbisect.html">ragbisect</a><a href="https://github.com/mi2arun/contextpull">GitHub</a></div></div></div>
+<div class="wrap docs"><nav><div class="grp">documents</div><a href="index.html">Overview</a><a href="architecture.html">Architecture</a><a href="design.html">Design document</a><a href="system-design.html" class="active">System design</a><a href="tool-reference.html">Tool reference</a><a href="evaluation.html">Evaluation</a><a href="testing.html">Testing</a><a href="roadmap.html">Roadmap</a><a href="sdk-plan.html">Multi-language SDK plan</a><a href="store-format.html">Store format contract</a><a href="adr.html">Decision records</a></nav><article class="doc"><div class="eyebrow">document</div><h1>System design</h1><p>This document is the implementation contract. Where it disagrees with code, one of them is wrong and it is usually the code.</p>
+<h2 id="1-data-model">1. Data model</h2>
+<p>One SQLite file, <code>.contextpull/store.sqlite</code> by default. WAL mode. Opened read-only at query time.</p>
+<pre><code class="language-sql">CREATE TABLE meta (
+  key   TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
+-- keys: schema_version, corpus_root, corpus_fingerprint, index_text, index_tokens,
+--       index_mode ('flat' | 'compact' | 'hierarchical'), summarizer ('llm:&lt;provider:model&gt;' | 'offline'),
+--       section_max_chars, ingested_at
+
+CREATE TABLE documents (
+  doc_id      INTEGER PRIMARY KEY,
+  path        TEXT NOT NULL UNIQUE,      -- posix path relative to corpus root
+  title       TEXT NOT NULL,             -- first H1, else file stem
+  summary     TEXT,                      -- one line, ≤ 160 chars
+  summary_src TEXT,                      -- 'llm' | 'offline'
+  sha256      TEXT NOT NULL,
+  bytes       INTEGER NOT NULL,
+  kind        TEXT NOT NULL,             -- 'markdown' | 'text' | 'pdf'
+  n_sections  INTEGER NOT NULL,
+  ingested_at TEXT NOT NULL
+);
+
+CREATE TABLE sections (
+  id           TEXT PRIMARY KEY,         -- '&lt;path&gt;#&lt;ordinal&gt;'
+  doc_id       INTEGER NOT NULL REFERENCES documents(doc_id) ON DELETE CASCADE,
+  ordinal      INTEGER NOT NULL,
+  heading_path TEXT NOT NULL,            -- 'Configuration &gt; Cache directory'
+  level        INTEGER NOT NULL,         -- depth of the governing heading, 0 for preamble
+  kind         TEXT NOT NULL,            -- 'prose' | 'table' | 'code' | 'mixed'
+  text         TEXT NOT NULL,
+  char_len     INTEGER NOT NULL,
+  hash         TEXT NOT NULL,            -- sha256 of text
+  prev_id      TEXT,
+  next_id      TEXT,
+  UNIQUE (doc_id, ordinal)
+);
+
+CREATE VIRTUAL TABLE sections_fts USING fts5(
+  id UNINDEXED,
+  heading_path,
+  text,
+  tokenize = &quot;unicode61 remove_diacritics 2 tokenchars '-_.'&quot;
+);
+-- tokenchars keeps identifiers whole: --no-cache, UV_CACHE_DIR, tx-4419, 3.12, tool.uv.sources
+
+CREATE TABLE embeddings (                -- optional, populated only with --embed
+  section_id TEXT PRIMARY KEY REFERENCES sections(id) ON DELETE CASCADE,
+  model      TEXT NOT NULL,
+  dim        INTEGER NOT NULL,
+  vec        BLOB NOT NULL               -- float32 little-endian, L2-normalised
+);
+
+CREATE TABLE summary_cache (             -- survives document deletion so re-adding is free
+  sha256  TEXT PRIMARY KEY,
+  model   TEXT NOT NULL,
+  summary TEXT NOT NULL
+);
+</code></pre>
+<p>Schema changes bump <code>schema_version</code>; <code>Store.open</code> runs forward migrations or refuses with a clear message if the file is newer than the code.</p>
+<h2 id="2-section-identity">2. Section identity</h2>
+<p><code>id = f"{path}#{ordinal}"</code>, ordinal zero-based in document order.</p>
+<ul>
+<li>Stable across re-ingest when the document is unchanged (hash match skips the document entirely).</li>
+<li>When a document changes, its ordinals are reassigned. Sections after an inserted heading shift by one. The <code>hash</code> column lets a client detect that an ID it remembered now points at different text.</li>
+<li>IDs are looked up in the database, never mapped to the filesystem. There is no path traversal surface.</li>
+</ul>
+<p>Rejected: content-hash IDs (unreadable in citations, change on any edit), UUIDs (unstable and unreadable), byte offsets (meaningless after re-ingest).</p>
+<h2 id="3-ingest-pipeline">3. Ingest pipeline</h2>
+<pre><code>discover → hash → parse → section → classify → write → fts → summarize → index
+</code></pre>
+<p><strong>Discover.</strong> Walk the corpus root. Include <code>.md .markdown .txt</code>, and <code>.pdf</code> when the <code>pdf</code> extra is installed. Skip hidden directories and anything matching <code>.contextpullignore</code> (gitignore syntax subset: literal paths and <code>*</code> globs). Sorted order for determinism.</p>
+<p><strong>Hash.</strong> sha256 of file bytes. Unchanged documents are skipped whole. Deleted documents are removed with their sections and FTS rows.</p>
+<p><strong>Parse</strong> produces a block stream: <code>Heading(level, text)</code>, <code>Paragraph(text)</code>, <code>Table(header_row, rows, raw)</code>, <code>Code(lang, raw)</code>, <code>ListBlock(raw)</code>.</p>
+<ul>
+<li>Markdown: line-based parser for ATX headings, fenced code, pipe tables, paragraphs. Setext headings supported. Front matter (<code>---</code> block at top) parsed for <code>title</code> and otherwise dropped. No HTML rendering.</li>
+<li>Text: paragraphs split on blank lines; lines that are short, title-cased, and followed by a blank line are treated as level-2 headings.</li>
+<li>PDF (optional <code>pdf</code> extra, pypdf): text runs with their font size; the most common size by character count is the body size, runs at least 1.2× larger and under 120 characters become headings, levels assigned by descending size. Tables are not detected, and page numbers are not recorded in v1; sections carry heading paths only. A PDF whose text has one font size yields a single heading-less document, which is still searchable.</li>
+</ul>
+<p><strong>Section.</strong> Rules, in priority order:</p>
+<ol>
+<li>A new section starts at every heading of level ≤ <code>section_heading_depth</code> (default 4).</li>
+<li>A section longer than <code>section_max_chars</code> (default 2000) is split at block boundaries into parts that share the heading path. Prose is split to fit the room left in the current part, at sentence or word boundaries, so a heading is always followed by content in its own part and only a single word longer than the limit is ever cut. Parts get consecutive ordinals.</li>
+<li>A code block is never split; if it exceeds the limit it becomes a section by itself. A table is never split mid-row; a table longer than the limit is split by rows into consecutive sections that share the heading path, and every part's text begins with the header row and separator, so a part is readable on its own. Such sections have <code>kind = 'table'</code>.</li>
+<li>Fragments shorter than <code>section_min_chars</code> (default 40) are merged. A fragment that is only a heading merges forward into the next section, since the heading introduces what follows. Any other fragment merges backward into the previous section, or forward if it is the first. A merge re-packs the combined blocks under rule 2, so the size limit still holds; when nothing can absorb a fragment, for example a document that ends with a bare heading, it stays as its own small section.</li>
+<li>Preamble before the first heading is a section with <code>level = 0</code> and <code>heading_path = title</code>.</li>
+</ol>
+<p>Invariants tested: concatenating section texts in ordinal order reproduces the parsed document text modulo whitespace and repeated table headers; no section contains a partial fence or a partial table row; every table part begins with its header; every section has a non-empty heading path.</p>
+<p><strong>Classify.</strong> <code>kind</code> is <code>table</code> or <code>code</code> if the section is exactly one such block, <code>mixed</code> if it contains one alongside prose, else <code>prose</code>.</p>
+<p><strong>Write.</strong> One transaction per document: delete old sections, insert new, set <code>prev_id</code>/<code>next_id</code>. FTS rows inserted in the same transaction.</p>
+<p><strong>Summarize.</strong> Per changed document, one LLM call producing a one-line summary (≤ 160 chars) from the title, heading list and first 1,500 characters. Cached in <code>summary_cache</code> by document sha256. If no provider is configured, <code>summary_src = 'offline'</code> and the summary is the first heading plus the first sentence.</p>
+<p><strong>Index.</strong> See §4. Stored in <code>meta.index_text</code>.</p>
+<p>Incremental cost is proportional to changed documents. A no-change re-ingest performs only the discover and hash steps and leaves <code>index_text</code> byte-identical.</p>
+<h2 id="4-index-construction">4. Index construction</h2>
+<p>The index is plain text, budgeted in tokens (approximation: characters ÷ 4, configurable; exact tokenizer not required). Default budget 3,000 tokens: with model summaries a document line is about 25 tokens, so roughly 110 documents fit flat.</p>
+<p><strong>Flat mode</strong> (default when it fits the budget):</p>
+<pre><code>ContextPull index · 81 documents · 1,017 sections · corpus a3f1f1a6
+Call search(query, in?) to find sections by words or identifiers, read(id) for exact text,
+grep(pattern) for codes and flags, neighbours(id) for the header or next clause.
+Search returns ids and snippets only; read what you need, then answer with [ids].
+
+concepts/cache.md            Cache · how uv decides the cache dir, pruning, CI usage       (22 sections)
+concepts/indexes.md          Indexes · defining, pinning packages to, explicit flag       (14)
+guides/integration/aws.md    AWS CodeArtifact auth via keyring, env vars                 (9)
+...
+</code></pre>
+<p>One line per document: path padded to column 30, summary (or title) truncated to 60 characters, section count. Paths are the <code>in</code> filter values for <code>search</code>, so the model learns them from the index.</p>
+<p><strong>Compact mode</strong> (when flat exceeds the budget): the same one line per document with the summary dropped, path and section count only, so every document is still addressable by name. The header says <code>compact; call index(prefix) for summaries</code>.</p>
+<p><strong>Hierarchical mode</strong> (when compact also exceeds the budget): one line per top-level directory with document and section counts and the first few titles. If even that exceeds the budget, directory lines are kept in path order until the budget is reached and a final line says how many were left out. <code>index(prefix)</code> returns the flat listing under a prefix. The header line says "hierarchical; call index(prefix) to expand". The budget is always honoured.</p>
+<p><strong>Scale tiers</strong> and expected behaviour:</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Corpus</th>
+<th>Sections</th>
+<th>Index mode</th>
+<th>Search p50 target</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>≤ ~110 docs</td>
+<td>≤ 5k</td>
+<td>flat, with summaries</td>
+<td>&lt; 20 ms</td>
+</tr>
+<tr>
+<td>≤ ~300 docs</td>
+<td>≤ 10k</td>
+<td>compact, paths and counts</td>
+<td>&lt; 20 ms</td>
+</tr>
+<tr>
+<td>≤ 5k docs</td>
+<td>≤ 100k</td>
+<td>hierarchical, one level</td>
+<td>&lt; 50 ms</td>
+</tr>
+<tr>
+<td>&gt; 5k docs</td>
+<td>&gt; 100k</td>
+<td>hierarchical, directory tree only, search-first</td>
+<td>&lt; 100 ms</td>
+</tr>
+</tbody>
+</table></div>
+<p>FTS5 handles the search side of all three tiers. The index budget is the constraint, not the store.</p>
+<h2 id="5-operations">5. Operations</h2>
+<p>All in <code>contextpull.ops</code>, pure functions over an open <code>Store</code>, no I/O beyond SQLite. Full argument tables in <a href="tool-reference.html">Tool reference</a>.</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Operation</th>
+<th>Implementation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>index(prefix?)</code></td>
+<td>Returns <code>meta.index_text</code>, or computes the sub-listing for <code>prefix</code> from <code>documents</code>.</td>
+</tr>
+<tr>
+<td><code>search(query, in?, limit=10, mode='lexical')</code></td>
+<td>FTS5 <code>MATCH</code> in three passes of descending precision: exact phrase, all terms (<code>AND</code>), any term (<code>OR</code>), stopping when <code>limit</code> is filled; rank by <code>bm25(sections_fts, 0.0, 2.0, 1.0)</code> (one weight per FTS column: id, heading path, text) weighting heading path over text; filter by <code>in</code> path globs via <code>documents.path GLOB</code>; snippet from <code>snippet()</code> at 20 tokens. <code>mode='hybrid'</code> fuses with cosine over <code>embeddings</code> by reciprocal rank when embeddings exist, else falls back to lexical and says so in the result.</td>
+</tr>
+<tr>
+<td><code>read(id, context=0)</code></td>
+<td>Section by primary key; with <code>context=n</code>, also the n previous and n next sections of the same document, in order, marked as context. For <code>kind='table'</code> parts of a split table, the header row is always included.</td>
+</tr>
+<tr>
+<td><code>grep(pattern, in?, regex=False, limit=20)</code></td>
+<td>Case-insensitive substring scan by default (<code>instr(lower(text), pattern)</code>), regex via Python <code>re</code> over all sections in the path filter; no FTS prefilter, because grep exists for substrings inside tokens; returns the matching line with the section id. Regex compile errors return a tool error. Pattern length capped at 200 chars; regex evaluation capped per section by a step budget.</td>
+</tr>
+<tr>
+<td><code>neighbours(id, before=1, after=1)</code></td>
+<td>Follows <code>prev_id</code>/<code>next_id</code>. Includes the table header section if <code>id</code> is a table continuation.</td>
+</tr>
+</tbody>
+</table></div>
+<p>Every result carries <code>id</code>, <code>heading_path</code> and <code>doc</code> so the model can cite without a second call.</p>
+<h2 id="6-tool-schemas">6. Tool schemas</h2>
+<p><code>contextpull.tools.TOOLS</code> is a list of five dicts with <code>name</code>, <code>description</code>, <code>input_schema</code> (JSON Schema draft 2020-12). The MCP server registers them verbatim; the embedding recipe passes them to the Anthropic or OpenAI tools parameter with a one-line adapter for OpenAI's <code>parameters</code> key; the evaluation adapters import them so the loop under test uses exactly the same definitions. Tool descriptions carry the pull discipline: search for pointers, read for text, cite ids.</p>
+<h2 id="7-delivery-into-hosts">7. Delivery into hosts</h2>
+<p><strong>Server instructions.</strong> On MCP <code>initialize</code>, the server returns <code>instructions</code> containing the pull discipline paragraph and, when <code>index_tokens ≤ budget</code>, the full index. Claude Code and Claude Desktop inject server instructions into the system prompt, which makes the index always present without a user-visible file. When the index exceeds the budget, instructions contain the hierarchical header and the directory listing.</p>
+<p><strong>Tool and resource.</strong> <code>index</code> is also a tool, and the same text is served as resource <code>contextpull://index</code>, for hosts that ignore instructions or let users attach resources by hand.</p>
+<p><strong>Custom clients</strong> call <code>ops.index()</code> and put the text wherever their prompt assembly wants it.</p>
+<p><strong>Attaching to Claude Code.</strong></p>
+<pre><code class="language-sh">claude mcp add contextpull -- uvx --from &quot;contextpull[mcp]&quot; contextpull serve ./docs   # from PyPI; the mcp extra is needed for serve
+claude mcp add contextpull -- uv run --project /path/to/contextpull contextpull serve ./docs   # from a checkout
+</code></pre>
+<p><code>serve &lt;dir&gt;</code> ingests incrementally into <code>&lt;dir&gt;/.contextpull/store.sqlite</code> and then speaks MCP over stdio; pass a <code>.sqlite</code> path to serve a prebuilt store, <code>--no-ingest</code> to skip the refresh, <code>--summarizer provider:model</code> for model summaries, <code>--log</code> for one line per tool call on stderr. Headless runs use <code>claude -p … --mcp-config cfg.json --strict-mcp-config --allowedTools "mcp__contextpull__*"</code>.</p>
+<p><strong>Convenience for Claude Code.</strong> <code>contextpull claude-md</code> prints a snippet for <code>CLAUDE.md</code> that tells the model the server exists and how to use it, for teams that prefer explicit project instructions. Optional, not the mechanism.</p>
+<h2 id="8-configuration">8. Configuration</h2>
+<p>Precedence: CLI flags, then environment variables prefixed <code>CONTEXTPULL_</code>, then <code>[tool.contextpull]</code> in <code>pyproject.toml</code> at the corpus root, then defaults.</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Default</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>store</code></td>
+<td><code>.contextpull/store.sqlite</code></td>
+<td></td>
+</tr>
+<tr>
+<td><code>section_max_chars</code></td>
+<td>2000</td>
+<td></td>
+</tr>
+<tr>
+<td><code>section_min_chars</code></td>
+<td>40</td>
+<td></td>
+</tr>
+<tr>
+<td><code>section_heading_depth</code></td>
+<td>4</td>
+<td></td>
+</tr>
+<tr>
+<td><code>index_budget_tokens</code></td>
+<td>3000</td>
+<td></td>
+</tr>
+<tr>
+<td><code>summarizer</code></td>
+<td><code>offline</code></td>
+<td>or <code>provider:model</code></td>
+</tr>
+<tr>
+<td><code>embed_model</code></td>
+<td>none</td>
+<td><code>--embed-model provider:model</code> at ingest embeds every section (heading path + text, L2-normalised float32) and enables <code>search(mode="hybrid")</code>. Hybrid embeds the query at query time with the same model: the one network call ContextPull makes while answering, opt-in by construction. Fusion is reciprocal rank, k = 60, over the lexical hits and the top 4×limit dense neighbours, path filter applied to both.</td>
+</tr>
+<tr>
+<td><code>transport</code></td>
+<td><code>stdio</code></td>
+<td>or <code>http</code>: streamable HTTP at <code>/mcp</code>, stateless sessions, <code>--host</code> (default 127.0.0.1) <code>--port</code> (default 8765)</td>
+</tr>
+<tr>
+<td><code>readonly</code></td>
+<td>true at serve time</td>
+<td></td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="9-concurrency-and-consistency">9. Concurrency and consistency</h2>
+<ul>
+<li>Ingest takes a write lock via SQLite; a running server in WAL mode keeps reading the last committed snapshot and sees the new index on its next <code>initialize</code> or <code>index</code> call.</li>
+<li>The server never writes.</li>
+<li>Multiple servers over one store file are fine (read-only, WAL).</li>
+</ul>
+<h2 id="10-failure-modes">10. Failure modes</h2>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Failure</th>
+<th>Behaviour</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Corpus path missing or empty</td>
+<td><code>ingest</code> exits non-zero with the path and supported extensions</td>
+</tr>
+<tr>
+<td>Unparseable file</td>
+<td>Skipped, listed in the ingest summary with reason; never aborts the run</td>
+</tr>
+<tr>
+<td>PDF without the extra</td>
+<td>Listed as skipped with the install hint</td>
+</tr>
+<tr>
+<td>No summarizer credentials</td>
+<td>Offline summaries; index header says <code>summaries: offline</code></td>
+</tr>
+<tr>
+<td><code>search</code> with no hits</td>
+<td>Empty result with a <code>hint</code> field suggesting <code>grep</code> for identifiers or a broader query</td>
+</tr>
+<tr>
+<td><code>read</code> of unknown id</td>
+<td>Tool error naming the id; suggests <code>search</code></td>
+</tr>
+<tr>
+<td>Regex too expensive</td>
+<td>Tool error; suggests a substring match</td>
+</tr>
+<tr>
+<td>Store newer than code</td>
+<td><code>Store.open</code> refuses with both versions</td>
+</tr>
+<tr>
+<td>Index over budget</td>
+<td>Hierarchical mode; instructions say how to expand</td>
+</tr>
+</tbody>
+</table></div>
+<p>Nothing here is silent. The push pipeline's central defect is that retrieval failure produces no signal; every failure above produces one the model can act on.</p>
+<h2 id="11-security">11. Security</h2>
+<ul>
+<li>The server is read-only over one SQLite file. No filesystem access at query time; IDs resolve in the database.</li>
+<li>No network from the core at query time. The only outbound calls are during ingest, to the configured summarizer or embedding provider, and only over the text of documents the user chose to ingest.</li>
+<li>Regex <code>grep</code> bounded by pattern length and evaluation budget to prevent pathological patterns from stalling a host.</li>
+<li>Streamable HTTP transport binds to localhost by default; exposing it further is the operator's explicit choice, and per-section access rules are out of scope for v1.</li>
+<li>Credentials come only from environment variables and are never written to the store or logs.</li>
+</ul>
+<h2 id="12-observability">12. Observability</h2>
+<ul>
+<li><code>ingest</code> prints documents seen, changed, skipped, sections written, summaries generated versus cached, tokens spent, index mode and size.</li>
+<li><code>serve --log</code> writes one line per tool call: tool, arguments summary, result count, milliseconds. Never bodies.</li>
+<li>The evaluation adapters record tool calls, tokens and wall time per question for the cost columns.</li>
+</ul>
+<h2 id="13-testing-strategy">13. Testing strategy</h2>
+<ul>
+<li>Sectioning invariants as property-style tests over synthetic documents.</li>
+<li>Golden tests: ingest a fixture corpus, compare <code>index_text</code> and the id list against checked-in expected output.</li>
+<li>FTS behaviour: identifiers survive tokenisation; heading weighting ranks a heading match above a body match.</li>
+<li>MCP layer: in-memory client through the SDK, all five tools, error paths.</li>
+<li>Determinism: two ingests of the same fixture produce identical stores modulo timestamps.</li>
+</ul></article></div>
+<footer><div class="wrap"><span>MIT · © 2026 Arunkumar S</span><a href="https://github.com/mi2arun/contextpull">github.com/mi2arun/contextpull</a><a href="https://pypi.org/project/contextpull/">PyPI</a><a href="https://www.npmjs.com/package/contextpull">npm</a><a href="https://github.com/mi2arun/ragbisect">ragbisect</a></div></footer>
+</body></html>

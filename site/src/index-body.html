@@ -1,0 +1,75 @@
+<header class="wrap hero">
+  <div class="eyebrow">ContextPull · an MCP server and library for document retrieval</div>
+  <h1>Pull, don’t push.</h1>
+  <div class="hero-grid">
+    <div style="display:grid;gap:18px">
+      <p class="lede">Classic RAG pushes the top-k chunks at the model before it has thought about the question. ContextPull works the way Claude Code works on a codebase: a small index that is always in context, and tools that return exact sections on demand. The model decides what to read, reads it verbatim, and cites it.</p>
+      <div class="claim">The model never receives content it did not ask for.</div>
+      <div class="badges">
+        <img alt="PyPI" src="https://img.shields.io/pypi/v/contextpull?label=pypi&color=f0a93a&labelColor=222c36">
+        <img alt="npm" src="https://img.shields.io/npm/v/contextpull?label=npm&color=f0a93a&labelColor=222c36">
+        <img alt="ci" src="https://img.shields.io/github/actions/workflow/status/mi2arun/contextpull/ci.yml?label=ci&labelColor=222c36">
+        <img alt="license" src="https://img.shields.io/badge/license-MIT-7ea2cc?labelColor=222c36">
+      </div>
+      <div class="cta">
+        <a class="btn primary" href="demo.html">Watch the demo</a>
+        <a class="btn" href="docs/index.html">Read the docs</a>
+        <a class="btn" href="https://github.com/mi2arun/contextpull">GitHub</a>
+      </div>
+    </div>
+    <div class="install">
+      <div><div class="lbl">Claude Code</div><pre><code>claude mcp add contextpull -- uvx --from "contextpull[mcp]" contextpull serve ./docs</code></pre></div>
+      <div><div class="lbl">Any MCP host, Node</div><pre><code>npx -y contextpull serve ./docs/.contextpull/store.sqlite</code></pre></div>
+      <div><div class="lbl">Python library</div><pre><code>pip install contextpull
+from contextpull import Store, Ops
+ops = Ops(Store.open(".contextpull/store.sqlite"))
+ops.search("refund window", in_=["policy-2025.md"])</code></pre></div>
+    </div>
+  </div>
+</header>
+
+<section id="how"><div class="wrap">
+  <div class="sec-head"><div class="eyebrow">how it works</div><h2>Index in context. Pointers on request. Text only when asked.</h2></div>
+  <div class="steps">
+    <div class="step"><h3>Ingest once into one SQLite file</h3><p>Markdown, text and PDF become heading-aware sections with stable ids like <code>policy-2025.md#3</code>. Tables and code are never split mid-block. Unchanged files are skipped on re-ingest. Zero dependencies.</p></div>
+    <div class="step"><h3>The index rides along</h3><p>A token-budgeted table of contents, one line per document, is delivered in the MCP server’s instructions so the model knows what exists before it does anything. Also a tool and a resource.</p></div>
+    <div class="step"><h3>The model pulls</h3><p><code>search</code> returns ids and snippets, never bodies. <code>read</code> returns one section verbatim. <code>grep</code> finds exact codes and flags. <code>neighbours</code> recovers a table header or the next clause. The answer cites ids.</p></div>
+  </div>
+</div></section>
+
+<section id="tools"><div class="wrap">
+  <div class="sec-head"><div class="eyebrow">five tools, one definition</div><h2>Small on purpose.</h2><p class="lede">The same schemas power the Python server, the Node server, the direct-API recipe and the benchmark adapters.</p></div>
+  <div class="tools">
+    <div class="tool"><code>index</code><p>Table of contents. Flat with summaries, compact past ~110 documents, hierarchical past ~300; <code>index(prefix)</code> drills down.</p></div>
+    <div class="tool"><code>search</code><p>FTS5 lexical search that keeps identifiers whole; three passes, phrase then all words then any. Optional hybrid with embeddings.</p></div>
+    <div class="tool"><code>read</code><p>One section verbatim with heading path and neighbour ids. Table parts always begin with their header row.</p></div>
+    <div class="tool"><code>grep</code><p>Substring or regex over sections. <code>TX-45</code> finds <code>TX-4501</code>; embeddings never will.</p></div>
+    <div class="tool"><code>neighbours</code><p>Adjacent sections in document order, plus the table header when an id is part of a split table.</p></div>
+  </div>
+</div></section>
+
+<section id="measured"><div class="wrap">
+  <div class="sec-head"><div class="eyebrow">measured, including the part that hurts</div><h2>The pull pattern is only as good as the model’s willingness to read.</h2>
+  <p class="lede">Every claim here is a row in a <a href="ragbisect.html">ragbisect</a> table next to bm25, dense and hybrid, on the same self-built eval set. uv documentation, 603 sections, 221 questions, recall@5.</p></div>
+  <div class="tbl"><table>
+    <thead><tr><th>config</th><th class="num">recall@5</th><th class="num">mrr@5</th><th class="num">ms / query</th><th class="num">model tokens / query</th><th class="num">tool calls / query</th></tr></thead>
+    <tbody>
+      <tr class="best"><td>pull · Claude Code (10-question sample)</td><td class="num">1.000</td><td class="num">0.883</td><td class="num">26,565</td><td class="num">86,656</td><td class="num">4.8</td></tr>
+      <tr class="best"><td>hybrid push · dense + bm25, RRF</td><td class="num">0.964</td><td class="num">0.821</td><td class="num">69</td><td class="num">0</td><td class="num">0</td></tr>
+      <tr><td>bm25 push</td><td class="num">0.923</td><td class="num">0.805</td><td class="num">5</td><td class="num">0</td><td class="num">0</td></tr>
+      <tr><td>dense push · text-embedding-3-small</td><td class="num">0.851</td><td class="num">0.738</td><td class="num">366</td><td class="num">≈15</td><td class="num">0</td></tr>
+      <tr><td>pull · gpt-5.4-mini, reasoning off</td><td class="num">0.045</td><td class="num">0.045</td><td class="num">20,663</td><td class="num">12,405</td><td class="num">4.5</td></tr>
+    </tbody>
+  </table></div>
+  <p class="note">A strong agent searched, read the gold section and cited it on every sampled question, at about $0.30 each. A small model with reasoning off answered from search snippets and read a section once in twenty. Push retrieval costs milliseconds and no model tokens; pull costs tens of thousands of tokens a question. Both facts stay in the table. Full write-up, mistakes included, in the <a href="docs/testing.html">testing notes</a>.</p>
+</div></section>
+
+<section id="works-with"><div class="wrap">
+  <div class="sec-head"><div class="eyebrow">works with what you have</div><h2>One store file, three ways in.</h2></div>
+  <div class="two">
+    <div class="card"><h3>Open MCP hosts</h3><p>Claude Code, Claude Desktop, Cursor and others attach the server over stdio; a shared read-only server speaks streamable HTTP. The Python server needs the <code>mcp</code> extra; the Node server needs nothing but Node.</p></div>
+    <div class="card"><h3>Your own client</h3><p>Import the Python library, or use <code>tools.json</code> with the Anthropic or OpenAI API directly. The direct-API example answers a comparison question with two reads and two citations in under a hundred lines.</p></div>
+    <div class="card"><h3>Other languages</h3><p>The SQLite store is the contract. A conformance suite defines correctness; the TypeScript reader passes it and returns byte-identical results to Python over MCP. Go is next.</p></div>
+    <div class="card"><h3>Honest measurement</h3><p><a href="ragbisect.html">ragbisect</a>, the companion harness, builds an eval set from your corpus in five question shapes and scores each retrieval stage on its own. ContextPull is just another row.</p></div>
+  </div>
+</div></section>

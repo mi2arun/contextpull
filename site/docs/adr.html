@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Decision records · ContextPull docs</title><meta name="description" content="Pull, don’t push: exact document sections on demand for LLM agents. MCP server, zero-dependency Python core, Node reader.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap"><link rel="stylesheet" href="../site.css">
+</head><body>
+<div class="nav"><div class="wrap"><a class="brand" href="../index.html">ContextPull <small style="color:var(--muted);font-weight:500;font-size:13px"> · pull, don’t push</small></a><div class="nav-links"><a href="../index.html">ContextPull</a><a href="../demo.html">Demo</a><a href="../docs/index.html" class="active">Docs</a><a href="../ragbisect.html">ragbisect</a><a href="https://github.com/mi2arun/contextpull">GitHub</a></div></div></div>
+<div class="wrap docs"><nav><div class="grp">documents</div><a href="index.html">Overview</a><a href="architecture.html">Architecture</a><a href="design.html">Design document</a><a href="system-design.html">System design</a><a href="tool-reference.html">Tool reference</a><a href="evaluation.html">Evaluation</a><a href="testing.html">Testing</a><a href="roadmap.html">Roadmap</a><a href="sdk-plan.html">Multi-language SDK plan</a><a href="store-format.html">Store format contract</a><a href="adr.html" class="active">Decision records</a><a href="adr.html#adr-001" style="padding-left:22px;font-size:13px">001 · Python with a stdlib-only core</a><a href="adr.html#adr-002" style="padding-left:22px;font-size:13px">002 · SQLite with FTS5 as store and lexical index</a><a href="adr.html#adr-003" style="padding-left:22px;font-size:13px">003 · Layered surfaces: library, MCP server, embedding recipe</a><a href="adr.html#adr-004" style="padding-left:22px;font-size:13px">004 · Index delivered through server instructions, with tool and resource fallback</a><a href="adr.html#adr-005" style="padding-left:22px;font-size:13px">005 · Search returns pointers and snippets, never bodies</a><a href="adr.html#adr-006" style="padding-left:22px;font-size:13px">006 · Section ids are path plus ordinal, with a content hash</a><a href="adr.html#adr-007" style="padding-left:22px;font-size:13px">007 · Lexical retrieval first, embeddings optional</a><a href="adr.html#adr-008" style="padding-left:22px;font-size:13px">008 · Measure with ragbisect and publish the losses</a><a href="adr.html#adr-009" style="padding-left:22px;font-size:13px">009 · The store file is the cross-language contract</a></nav><article class="doc"><div class="eyebrow">decision records</div><h1>Decision records</h1><p>One page per decision that would be expensive to reverse: context, decision, consequences, alternatives.</p><article id="adr-001" class="adr"><h2><span class="num">ADR 001</span>Python with a stdlib-only core</h2><p><strong>Status:</strong> accepted · 2026-09-13</p>
+<h2 id="context">Context</h2>
+<p>The core will be imported into other people's applications and run next to whatever retrieval stack they already have. The evaluation harness, ragbisect, and its chunker, tokenizer and LLM wrapper are Python. MCP hosts commonly launch servers with <code>npx</code>, which favours TypeScript for distribution.</p>
+<h2 id="decision">Decision</h2>
+<p>Python 3.10+. The core package has zero runtime dependencies. The MCP SDK and pypdf are optional extras (<code>contextpull[mcp]</code>, <code>contextpull[pdf]</code>). Distribution through <code>uvx contextpull</code>, which Claude Code and other hosts launch as readily as <code>npx</code>.</p>
+<h2 id="consequences">Consequences</h2>
+<ul>
+<li>Reuse of ragbisect code and one language across tool and benchmark.</li>
+<li>Every dependency conflict in a host application is avoided for library users.</li>
+<li>HTTP is done with <code>urllib</code>; JSON with <code>json</code>; storage with <code>sqlite3</code>. Slightly more code, no supply chain.</li>
+<li>An npm wrapper can be added later without touching the core.</li>
+</ul>
+<h2 id="alternatives">Alternatives</h2>
+<ul>
+<li><strong>TypeScript first.</strong> Better <code>npx</code> story, but splits the codebase from the benchmark and loses the existing corpus code.</li>
+<li><strong>Allow a small framework dependency.</strong> Faster to build, but the tool is supposed to install alongside anything; a pinned pydantic or httpx is exactly the conflict we want to avoid for library users.</li>
+</ul></article><article id="adr-002" class="adr"><h2><span class="num">ADR 002</span>SQLite with FTS5 as store and lexical index</h2><p><strong>Status:</strong> accepted · 2026-09-13</p>
+<h2 id="context">Context</h2>
+<p>We need durable storage for documents and sections, a lexical index good enough that <code>search</code> finds identifiers and headings reliably, and a deployment story that is one file. Python's <code>sqlite3</code> ships FTS5 with built-in bm25 ranking on the platforms we care about; verified on macOS with SQLite 3.53.</p>
+<h2 id="decision">Decision</h2>
+<p>One SQLite file in WAL mode holds documents, sections, an FTS5 virtual table with an identifier-preserving tokenizer, cached summaries, the index text, and optional embeddings as blobs. Read-only at query time.</p>
+<h2 id="consequences">Consequences</h2>
+<ul>
+<li>Zero dependencies, one file to copy, back up or build in CI.</li>
+<li>Search scales to hundreds of thousands of sections without an in-memory index.</li>
+<li>Heading-path weighting is one parameter of <code>bm25()</code>.</li>
+<li>FTS5 availability must be checked at startup with a clear error on exotic Python builds.</li>
+<li>Vector search past a few tens of thousands of sections needs sqlite-vec or a brute-force pass; acceptable because embeddings are optional.</li>
+</ul>
+<h2 id="alternatives">Alternatives</h2>
+<ul>
+<li><strong>Pure-Python BM25 in memory</strong> (what ragbisect uses). Fine for a benchmark, not for a server over a large corpus; slow startup, no persistence.</li>
+<li><strong>A vector database.</strong> Dependency, process, and the wrong primary index: identifiers need lexical matching.</li>
+<li><strong>Postgres.</strong> Right for the shared deployment at scale, wrong as the default; the default must be a file.</li>
+</ul></article><article id="adr-003" class="adr"><h2><span class="num">ADR 003</span>Layered surfaces: library, MCP server, embedding recipe</h2><p><strong>Status:</strong> accepted · 2026-09-13</p>
+<h2 id="context">Context</h2>
+<p>Prospective users split three ways: teams that want their own client and will embed the capability; teams that use an open host such as Claude Code, Claude Desktop or Cursor and want a server to attach; and teams that call model APIs directly and want the tools in their own loop. We develop with Claude Code.</p>
+<h2 id="decision">Decision</h2>
+<p>The core library owns the store, the operations and the tool schemas. The MCP server is a thin wrapper over the operations. The embedding recipe is documentation plus one runnable example using the same schemas. All three surfaces share one definition of each tool.</p>
+<h2 id="consequences">Consequences</h2>
+<ul>
+<li>A custom client is a <code>pip install</code> and five function calls, no server process.</li>
+<li>Any MCP host works without host-specific code beyond index delivery (ADR 004).</li>
+<li>The evaluation adapters use the same tool definitions as production, so the benchmark measures what ships.</li>
+<li>The core cannot import the MCP SDK; it is an extra.</li>
+</ul>
+<h2 id="alternatives">Alternatives</h2>
+<ul>
+<li><strong>MCP server only.</strong> Simplest, but excludes the custom-client segment and forces a process boundary onto embedders.</li>
+<li><strong>Library only.</strong> Excludes open hosts, where most early adoption will come from.</li>
+</ul></article><article id="adr-004" class="adr"><h2><span class="num">ADR 004</span>Index delivered through server instructions, with tool and resource fallback</h2><p><strong>Status:</strong> accepted · 2026-09-13</p>
+<h2 id="context">Context</h2>
+<p>The pattern depends on the model knowing what exists before it decides what to read. In Claude Code that role is played by files loaded into the system prompt. MCP servers can return <code>instructions</code> at initialize, which Claude Code and Claude Desktop inject into the system prompt. Not every host does, and a large corpus cannot fit any budget.</p>
+<h2 id="decision">Decision</h2>
+<p>The index is delivered three ways from one cached text: in server <code>instructions</code> when it fits the token budget (default 3,000); as an <code>index</code> tool always; as resource <code>contextpull://index</code> always. Past the budget, instructions carry a hierarchical directory listing and tell the model to call <code>index(prefix)</code> to expand. Custom clients call <code>ops.index()</code>.</p>
+<h2 id="consequences">Consequences</h2>
+<ul>
+<li>In Claude Code the index is genuinely always in context with no user-visible file.</li>
+<li>Hosts that ignore instructions still work; the tool descriptions tell the model to call <code>index</code> first if it sees no index.</li>
+<li>Budget is a first-class setting and the index header states its mode, so behaviour is never mysterious.</li>
+<li>Hierarchical mode adds a round trip for large corpora; measured in the scale tiers.</li>
+</ul>
+<h2 id="alternatives">Alternatives</h2>
+<ul>
+<li><strong>Write a <code>CONTEXTPULL.md</code> into the project and reference it from <code>CLAUDE.md</code>.</strong> Works only in Claude Code, leaves generated files in the user's repo, drifts from the store. Offered as an optional convenience snippet, not the mechanism.</li>
+<li><strong>Tool only.</strong> Costs a round trip on every conversation and depends on the model remembering to call it.</li>
+</ul></article><article id="adr-005" class="adr"><h2><span class="num">ADR 005</span>Search returns pointers and snippets, never bodies</h2><p><strong>Status:</strong> accepted · 2026-09-13</p>
+<h2 id="context">Context</h2>
+<p>The central claim is that the model chooses what it reads. If <code>search</code> returned full sections, the tool would be push RAG with an extra step: top-k bodies land in context whether or not the model wanted them, tokens scale with k, and the trace no longer shows what the model actually consulted.</p>
+<h2 id="decision">Decision</h2>
+<p><code>search</code> returns id, document, heading path, a short snippet and a score. <code>read</code> returns text. <code>grep</code> returns matching lines with ids. <code>neighbours</code> returns sections because its purpose is context around a section already chosen.</p>
+<h2 id="consequences">Consequences</h2>
+<ul>
+<li>One extra round trip for the common case of one hit. Accepted; <code>read(id, context=n)</code> recovers most of it.</li>
+<li>Token cost is proportional to sections read, not to k.</li>
+<li>The tool trace is a faithful record of what informed the answer; citations are exact.</li>
+<li>The model must be told the discipline; every tool description carries it.</li>
+</ul>
+<h2 id="alternatives">Alternatives</h2>
+<ul>
+<li><strong>Return bodies for the top 1–3 hits.</strong> Fewer round trips, but it reintroduces unrequested content and blurs the measurement of what the model chose.</li>
+</ul></article><article id="adr-006" class="adr"><h2><span class="num">ADR 006</span>Section ids are path plus ordinal, with a content hash</h2><p><strong>Status:</strong> accepted · 2026-09-13</p>
+<h2 id="context">Context</h2>
+<p>Ids appear in citations, in tool arguments the model types, in ragbisect gold labels, and in logs. They must be readable, stable for an unchanged document, and safe to resolve.</p>
+<h2 id="decision">Decision</h2>
+<p><code>id = "&lt;relative path&gt;#&lt;ordinal&gt;"</code>, ordinal zero-based in document order. Each section also stores a sha256 of its text. Ids resolve only through the database.</p>
+<h2 id="consequences">Consequences</h2>
+<ul>
+<li>Readable in an answer: <code>[policy-2025.md#3]</code> tells a human where to look.</li>
+<li>Stable across re-ingest for unchanged documents; changed documents renumber and the hash exposes drift.</li>
+<li>No path traversal surface: the id is a key, not a path to open.</li>
+<li>Renaming a file changes every id in it. Acceptable; a rename is a corpus change.</li>
+</ul>
+<h2 id="alternatives">Alternatives</h2>
+<ul>
+<li><strong>Content-hash ids.</strong> Stable under reordering, but unreadable and they change on any edit, so citations rot faster, not slower.</li>
+<li><strong>UUIDs.</strong> Unreadable and unstable across re-ingest.</li>
+<li><strong>Byte offsets.</strong> Meaningless after any edit and unreadable.</li>
+</ul></article><article id="adr-007" class="adr"><h2><span class="num">ADR 007</span>Lexical retrieval first, embeddings optional</h2><p><strong>Status:</strong> accepted · 2026-09-13</p>
+<h2 id="context">Context</h2>
+<p>In an agentic loop the model rewrites and narrows queries itself, which recovers much of what embeddings add to one-shot retrieval. The shapes that push RAG fails on hardest, exact lookup and table cells, are lexical problems. On the <code>uv</code> documentation ragbisect measured bm25 at recall@5 0.918 against dense at 0.903, and hybrid at 0.952. Embeddings require a provider, credentials and cost at ingest.</p>
+<h2 id="decision">Decision</h2>
+<p>FTS5 bm25 with an identifier-preserving tokenizer is the default and only required search mode. Embeddings are an opt-in ingest flag that enables <code>search(mode="hybrid")</code> through reciprocal rank fusion. Missing embeddings fall back to lexical with a note in the result.</p>
+<h2 id="consequences">Consequences</h2>
+<ul>
+<li>Ingest works offline and costs nothing by default.</li>
+<li>Conceptual questions phrased far from the document's vocabulary may need a second search; the loop is designed for that.</li>
+<li>Hybrid remains available where the corpus shows a gap, and ragbisect tells us where that is.</li>
+</ul>
+<h2 id="alternatives">Alternatives</h2>
+<ul>
+<li><strong>Dense first.</strong> Best one-shot conceptual recall, worst identifier recall, mandatory provider dependency.</li>
+<li><strong>Dense only.</strong> Rejected for the same reasons, more strongly.</li>
+</ul></article><article id="adr-008" class="adr"><h2><span class="num">ADR 008</span>Measure with ragbisect and publish the losses</h2><p><strong>Status:</strong> accepted · 2026-09-13</p>
+<h2 id="context">Context</h2>
+<p>Agentic retrieval is easy to demo and hard to prove. Prior art shows demos. Buyers and contributors will ask how it compares to a tuned hybrid pipeline, on what question shapes, at what cost. We already own an instrument that answers exactly that.</p>
+<h2 id="decision">Decision</h2>
+<p>Every performance claim about ContextPull is a ragbisect row next to bm25, dense and hybrid, on the same sections (via <code>export-chunks</code>), the same eval set and the same k, with tokens, tool calls and wall time as columns. Results and caches are committed under <code>benchmarks/</code>. Write-ups name where pull loses.</p>
+<h2 id="consequences">Consequences</h2>
+<ul>
+<li>Development has a number to move from week three.</li>
+<li>Two adapters to maintain, one through the API and one through Claude Code headless.</li>
+<li>The positioning is honesty; a flattering-only benchmark would undercut it.</li>
+<li>ragbisect's own limits, single gold chunk in particular, are inherited and stated.</li>
+</ul>
+<h2 id="alternatives">Alternatives</h2>
+<ul>
+<li><strong>A custom benchmark.</strong> Duplicates work and invites the suspicion that it was designed to be won.</li>
+<li><strong>Demos and anecdotes.</strong> What everyone else does.</li>
+</ul></article><article id="adr-009" class="adr"><h2><span class="num">ADR 009</span>The store file is the cross-language contract</h2><p><strong>Status:</strong> accepted · 2026-09-13</p>
+<h2 id="context">Context</h2>
+<p>Custom clients will be written in TypeScript, Go, Java and others. Options were: force every language through the Python server as a sidecar; expose a C library over FFI; or make the SQLite store itself the interface and reimplement the small read side per language. The read operations are a few hundred lines; ingest is where the complexity lives.</p>
+<h2 id="decision">Decision</h2>
+<p>The versioned SQLite store format plus precisely specified operation semantics, <code>tools.json</code>, and an executable conformance suite form the contract. Readers may be implemented natively in any language with an FTS5-capable SQLite binding. Ingest stays in the Python reference implementation. The Python server remains available as a sidecar for languages without a native reader.</p>
+<h2 id="consequences">Consequences</h2>
+<ul>
+<li><code>npx contextpull serve</code> and a Go single binary become possible without Python at query time.</li>
+<li>Search semantics must be pinned to the level of tie-breaking, which also makes the Python implementation more rigorous.</li>
+<li>Every tool change is a coordinated release across SDKs, by design.</li>
+<li>Regex grep and hybrid search are outside conformance because they depend on the host engine or an external model; the docs say so.</li>
+<li>Contributors can add a language by passing a suite instead of reading Python.</li>
+</ul>
+<h2 id="alternatives">Alternatives</h2>
+<ul>
+<li><strong>Python sidecar only.</strong> Zero duplication, but a second runtime in every deployment and no <code>npx</code> story.</li>
+<li><strong>Shared C core over FFI.</strong> Maximum consistency, maximum build pain; SQLite already is the shared native layer.</li>
+<li><strong>gRPC or HTTP service as the only interface.</strong> Fine for hosted use, wrong for embedded clients and offline tools.</li>
+</ul></article></article></div>
+<footer><div class="wrap"><span>MIT · © 2026 Arunkumar S</span><a href="https://github.com/mi2arun/contextpull">github.com/mi2arun/contextpull</a><a href="https://pypi.org/project/contextpull/">PyPI</a><a href="https://www.npmjs.com/package/contextpull">npm</a><a href="https://github.com/mi2arun/ragbisect">ragbisect</a></div></footer>
+</body></html>

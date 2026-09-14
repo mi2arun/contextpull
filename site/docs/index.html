@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Overview · ContextPull docs</title><meta name="description" content="Pull, don’t push: exact document sections on demand for LLM agents. MCP server, zero-dependency Python core, Node reader.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap"><link rel="stylesheet" href="../site.css"><script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs"; mermaid.initialize({startOnLoad:true, theme: matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "neutral"});</script>
+</head><body>
+<div class="nav"><div class="wrap"><a class="brand" href="../index.html">ContextPull <small style="color:var(--muted);font-weight:500;font-size:13px"> · pull, don’t push</small></a><div class="nav-links"><a href="../index.html">ContextPull</a><a href="../demo.html">Demo</a><a href="../docs/index.html" class="active">Docs</a><a href="../ragbisect.html">ragbisect</a><a href="https://github.com/mi2arun/contextpull">GitHub</a></div></div></div>
+<div class="wrap docs"><nav><div class="grp">documents</div><a href="index.html" class="active">Overview</a><a href="architecture.html">Architecture</a><a href="design.html">Design document</a><a href="system-design.html">System design</a><a href="tool-reference.html">Tool reference</a><a href="evaluation.html">Evaluation</a><a href="testing.html">Testing</a><a href="roadmap.html">Roadmap</a><a href="sdk-plan.html">Multi-language SDK plan</a><a href="store-format.html">Store format contract</a><a href="adr.html">Decision records</a></nav><article class="doc"><div class="eyebrow">document</div><h1>Overview</h1><p>ContextPull turns a folder of documents into something an LLM agent can pull from the way Claude Code pulls from a codebase: a small index that is always in context, and tools that return exact sections on demand. The model never receives content it did not ask for.</p>
+<p>This set is the source of truth for what we are building. Read in order the first time.</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Document</th>
+<th>What it answers</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="architecture.html">Architecture</a></td>
+<td>What the parts are, how data flows, where the boundaries sit</td>
+</tr>
+<tr>
+<td><a href="design.html">Design document</a></td>
+<td>Why it exists, goals and non-goals, principles, the decisions and the alternatives we rejected</td>
+</tr>
+<tr>
+<td><a href="system-design.html">System design</a></td>
+<td>Data model, section IDs, ingest pipeline, index construction, tool contracts, delivery into hosts, scale tiers, failure modes, security</td>
+</tr>
+<tr>
+<td><a href="tool-reference.html">Tool reference</a></td>
+<td>The five tools, argument by argument, with examples</td>
+</tr>
+<tr>
+<td><a href="evaluation.html">Evaluation</a></td>
+<td>How we measure it with ragbisect, and what we publish, including losses</td>
+</tr>
+<tr>
+<td><a href="roadmap.html">Roadmap</a></td>
+<td>Four milestones with acceptance criteria</td>
+</tr>
+<tr>
+<td><a href="sdk-plan.html">Multi-language SDK plan</a></td>
+<td>How TypeScript, Go, Java and others get ContextPull without forking the logic</td>
+</tr>
+<tr>
+<td><a href="store-format.html">Store format contract</a></td>
+<td>The rules a reader in any language must follow</td>
+</tr>
+<tr>
+<td><a href="testing.html">Testing</a></td>
+<td>Test layers, scale and quality results, bugs the campaign found</td>
+</tr>
+<tr>
+<td><a href="adr.html">Decision records</a></td>
+<td>One page per irreversible-ish decision</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="one-paragraph-summary">One-paragraph summary</h2>
+<p>A corpus is ingested once into a single SQLite file: documents, heading-aware sections with stable IDs, an FTS5 full-text index, and a cached one-line summary per document. A compact table of contents built from those summaries is delivered into the model's context. The model then calls <code>search</code>, <code>read</code>, <code>grep</code> and <code>neighbours</code> to fetch exactly the sections it decides it needs, verbatim, with IDs it can cite. The same core is exposed three ways: as a Python library for teams building their own client, as an MCP server for any open host, and as an embedding recipe for direct API use. Claude Code is the development client. ragbisect is the measuring instrument, and the agentic configuration goes in the same table as bm25, dense and hybrid.</p>
+<h2 id="status">Status</h2>
+<p>M1 (core, CLI, conformance), M2 (MCP server, Claude Code integration, LLM summaries, protocol client examples) and M3 (agentic rows in the ragbisect table, TypeScript reader and server) built; two benchmark rows pending on API credits; M4 in progress: PDF ingest, hybrid search, HTTP transport and all five ragbisect shapes are built. <strong>Published to PyPI as <code>contextpull</code> 0.1.0 on 2026-09-14</strong>; npm: <code>contextpull</code> 0.1.0 published 2026-09-14. Name checked free on PyPI, npm and GitHub on 13 September 2026.</p>
+<h2 id="vocabulary">Vocabulary</h2>
+<ul>
+<li><strong>Document</strong>: one source file, identified by its path relative to the corpus root.</li>
+<li><strong>Section</strong>: a heading-delimited, size-bounded piece of a document. The unit of retrieval and citation.</li>
+<li><strong>Section ID</strong>: <code>path#ordinal</code>, e.g. <code>policy-2025.md#3</code>.</li>
+<li><strong>Index</strong>: the always-in-context table of contents, budgeted in tokens.</li>
+<li><strong>Host</strong>: the program running the model and holding the MCP connection. Claude Code, Claude Desktop, Cursor, or a custom client.</li>
+<li><strong>Push / pull</strong>: push is classic RAG, top-k chunks placed in the prompt before the model thinks. Pull is the model requesting content after it thinks.</li>
+</ul></article></div>
+<footer><div class="wrap"><span>MIT · © 2026 Arunkumar S</span><a href="https://github.com/mi2arun/contextpull">github.com/mi2arun/contextpull</a><a href="https://pypi.org/project/contextpull/">PyPI</a><a href="https://www.npmjs.com/package/contextpull">npm</a><a href="https://github.com/mi2arun/ragbisect">ragbisect</a></div></footer>
+</body></html>

@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Testing · ContextPull docs</title><meta name="description" content="Pull, don’t push: exact document sections on demand for LLM agents. MCP server, zero-dependency Python core, Node reader.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap"><link rel="stylesheet" href="../site.css"><script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs"; mermaid.initialize({startOnLoad:true, theme: matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "neutral"});</script>
+</head><body>
+<div class="nav"><div class="wrap"><a class="brand" href="../index.html">ContextPull <small style="color:var(--muted);font-weight:500;font-size:13px"> · pull, don’t push</small></a><div class="nav-links"><a href="../index.html">ContextPull</a><a href="../demo.html">Demo</a><a href="../docs/index.html" class="active">Docs</a><a href="../ragbisect.html">ragbisect</a><a href="https://github.com/mi2arun/contextpull">GitHub</a></div></div></div>
+<div class="wrap docs"><nav><div class="grp">documents</div><a href="index.html">Overview</a><a href="architecture.html">Architecture</a><a href="design.html">Design document</a><a href="system-design.html">System design</a><a href="tool-reference.html">Tool reference</a><a href="evaluation.html">Evaluation</a><a href="testing.html" class="active">Testing</a><a href="roadmap.html">Roadmap</a><a href="sdk-plan.html">Multi-language SDK plan</a><a href="store-format.html">Store format contract</a><a href="adr.html">Decision records</a></nav><article class="doc"><div class="eyebrow">document</div><h1>Testing</h1><p>What is tested, how, and what the M1 campaign found. Numbers are from 13 September 2026 on a 2019-era x86 MacBook with Python 3.12 and SQLite 3.53.</p>
+<h2 id="layers">Layers</h2>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Where</th>
+<th>What it guards</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Unit</td>
+<td><code>tests/test_parse.py</code>, <code>test_section.py</code>, <code>test_store_ingest.py</code>, <code>test_ops.py</code></td>
+<td>Parser blocks, sectioning rules, store versioning, incremental ingest, every operation, tool dispatch</td>
+</tr>
+<tr>
+<td>Adversarial</td>
+<td><code>tests/test_robustness.py::test_adversarial_corpus_ingests_without_crashing</code></td>
+<td>Empty, whitespace-only, binary, latin-1, CRLF, unclosed fence, table at EOF, table without body, six-level headings, 50k-char line, 2,000-section file, unicode filenames, hidden dirs, symlinks, duplicate basenames, shebangs and hashtags</td>
+</tr>
+<tr>
+<td>Randomised invariants</td>
+<td><code>tests/test_robustness.py::test_sectionizer_invariants_on_random_markdown</code> (60 seeds)</td>
+<td>Ordinals contiguous, heading paths non-empty, no partial fence, every table part carries its header, size limit respected except whole code blocks, table rows and single words, lossless modulo whitespace, deterministic</td>
+</tr>
+<tr>
+<td>CLI and concurrency</td>
+<td><code>tests/test_cli_concurrency.py</code></td>
+<td>Every subcommand and its JSON output, exit codes, env var precedence, a reader running while ingest rewrites the store five times</td>
+</tr>
+<tr>
+<td>Conformance</td>
+<td><code>conformance/run.py check</code></td>
+<td>23 cases over a fixture store: the executable cross-language contract</td>
+</tr>
+<tr>
+<td>Scale</td>
+<td><code>scripts/scale_test.py [n]</code></td>
+<td>Synthetic corpus, ingest throughput, store size, per-operation latency, identifier precision</td>
+</tr>
+<tr>
+<td>Quality</td>
+<td><code>examples/ragbisect_adapter.py</code> with ragbisect</td>
+<td><code>search</code> as a one-shot retriever against ragbisect's bm25, dense and hybrid over the same sections</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="scale-results">Scale results</h2>
+<p>Synthetic corpus, 20-word vocabulary so every common-word query matches nearly every section. This is the worst case for ranking; real corpora match far fewer rows.</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>documents</th>
+<th>sections</th>
+<th>ingest</th>
+<th>sections/s</th>
+<th>no-op re-ingest</th>
+<th>store size</th>
+<th>index mode</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>500</td>
+<td>9,937</td>
+<td>1.9 s</td>
+<td>5,200</td>
+<td>0.13 s</td>
+<td>36 MB</td>
+<td>hierarchical, 1,995 tokens</td>
+</tr>
+<tr>
+<td>5,000</td>
+<td>98,366</td>
+<td>20.6 s</td>
+<td>4,800</td>
+<td>1.0 s</td>
+<td>354 MB</td>
+<td>hierarchical, 1,998 tokens</td>
+</tr>
+</tbody>
+</table></div>
+<p>Latency at 98k sections, 300 calls each:</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>operation</th>
+<th>p50</th>
+<th>p95</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>search, two common words</td>
+<td>184 ms</td>
+<td>212 ms</td>
+</tr>
+<tr>
+<td>search, exact identifier</td>
+<td>0.3 ms</td>
+<td>0.5 ms</td>
+</tr>
+<tr>
+<td>read</td>
+<td>&lt; 0.1 ms</td>
+<td>0.1 ms</td>
+</tr>
+<tr>
+<td>grep, literal, whole corpus</td>
+<td>315 ms</td>
+<td>see note</td>
+</tr>
+<tr>
+<td>grep, literal, with <code>in=</code> filter</td>
+<td>8 ms</td>
+<td>21 ms</td>
+</tr>
+<tr>
+<td>neighbours</td>
+<td>0.1 ms</td>
+<td>0.1 ms</td>
+</tr>
+<tr>
+<td>index(prefix)</td>
+<td>2.0 ms</td>
+<td>2.4 ms</td>
+</tr>
+</tbody>
+</table></div>
+<p>Identifier search returned the exact section first in 200 of 200 tries.</p>
+<p><strong>Grep is a full substring scan by design.</strong> An earlier version pre-filtered candidates with the word index and ran in 0.1 ms, but it could not find <code>TX-45</code> inside <code>TX-4501</code>, which is the whole point of grep. The scan costs 315 ms (rare pattern) to 450 ms (common word) over 98k sections and 8 ms with a path filter; the tool description tells the model to pass <code>in=</code> on large corpora. A trigram FTS index would make substring grep fast at the cost of roughly 40% more store size and is the candidate optimisation if real corpora need it.</p>
+<p><strong>The common-word search is over the 50 ms tier target.</strong> The query matched 92,812 of 98,366 sections; FTS5 must score and sort all of them. Benchmarked variants on that store: the deterministic <code>ORDER BY rank, id</code> costs 230 ms against 95 ms for <code>ORDER BY rank</code> alone, and FTS5's rank-configuration optimisation did not beat it. Decision: keep the deterministic tie-break, because identical id lists across SDKs is the contract; document that latency scales with matched rows, not corpus size. Real corpora have vocabularies of thousands of words and matched sets in the hundreds. The three-pass query (phrase, AND, OR) was added during this campaign so the expensive <code>OR</code> pass runs only when stricter passes do not fill the limit.</p>
+<p>Store size is about 3.6 KB per section, roughly twice the text: FTS5 keeps its own copy of the indexed columns for snippets plus the inverted index. Accepted for v1; a contentless FTS table would halve it at the cost of snippets.</p>
+<h2 id="quality-results">Quality results</h2>
+<p>ragbisect over the <code>uv</code> documentation, 604 ContextPull sections exported with <code>export-chunks</code>, 219 self-generated questions, k = 5, generation model gpt-5.4-mini.</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>config</th>
+<th>recall@5</th>
+<th>mrr@5</th>
+<th>ndcg@5 given hit</th>
+<th>conceptual recall</th>
+<th>exact-lookup recall</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ContextPull <code>search</code> (lexical)</td>
+<td>0.927</td>
+<td>0.777</td>
+<td>0.879</td>
+<td>0.906</td>
+<td>0.956</td>
+</tr>
+<tr>
+<td>ragbisect bm25</td>
+<td>0.922</td>
+<td>0.785</td>
+<td>0.889</td>
+<td>0.914</td>
+<td>0.934</td>
+</tr>
+<tr>
+<td>ragbisect dense</td>
+<td>0.918</td>
+<td>0.791</td>
+<td>0.897</td>
+<td>0.938</td>
+<td>0.890</td>
+</tr>
+<tr>
+<td>ragbisect hybrid RRF</td>
+<td>0.963</td>
+<td>0.870</td>
+<td>0.928</td>
+<td>0.945</td>
+<td>0.989</td>
+</tr>
+</tbody>
+</table></div>
+<p>Reading: the identifier-preserving tokeniser and normalisation do what they were for, ContextPull's lexical search leads every single-mode config on exact lookups. It trails dense on conceptual questions by about three points, which is the case for the optional hybrid mode. Hybrid still wins overall, as it did on ragbisect's own chunks. This is a one-shot measurement of the <code>search</code> tool; the agentic loop that lets the model search twice is M3, and that is where the pull argument is actually tested.</p>
+<h2 id="bugs-found-by-the-campaign-all-fixed">Bugs found by the campaign, all fixed</h2>
+<ol>
+<li>Fence info strings with attributes (<code>toml title="x"</code>) were not recognised as fence openers, so the closing fence opened a block that swallowed the next heading and table.</li>
+<li><code>-</code> and <code>.</code> as FTS token characters made <code>--no-cache</code> and every sentence-final word unsearchable. Indexed columns are now normalised; section text stays verbatim.</li>
+<li>Offline summaries pushed an 81-document index past the budget straight to hierarchical mode. Compact mode was added.</li>
+<li>The hierarchical index did not itself honour the budget at 5,000 documents. It now truncates the directory list and says how many were left out.</li>
+<li>Oversized paragraphs were hard-cut mid-word. They now split at sentence and word boundaries.</li>
+<li>A bare heading that did not fit with the following paragraph was flushed alone and merged forward, producing an over-limit prose section. The packer now splits prose to fit the room left after a heading.</li>
+<li><code>grep</code> pre-filtered candidates with the word index, so <code>TX-45</code> could not find <code>TX-4501</code>. It is now a plain substring scan; cost at 98k sections is recorded above.</li>
+<li>Fragment merging ignored the size limit, so a trailing bare heading or a leading H1 could push a neighbour a few characters over. Merges now re-pack the combined blocks.</li>
+</ol>
+<h2 id="m2-mcp-server">M2: MCP server</h2>
+<ul>
+<li><code>tests/test_mcp.py</code>: nine tests. Initialize delivers the index in <code>instructions</code>; tools listed from the shared schemas; all five tools round-trip; tool errors (unknown id, bad regex, wrong argument type, unknown tool) come back as <code>is_error</code> results and the server keeps serving; the index resource equals the instructions body; a real stdio subprocess serves a store file and a directory; the summarizer wrapper with a mocked HTTP layer.</li>
+<li>Claude Code headless, conformance corpus: comparison question answered with two scoped searches, three reads, both ids cited ($0.33, 7 turns); identifier question answered via grep, read, grep, id cited ($0.23, 5 turns). Traces in the roadmap.</li>
+<li>Protocol clients: TypeScript and Go with the official SDKs, Java with raw JSON-RPC, all three against the Python server over stdio, all three read both refund-window sections.</li>
+<li>Direct API loop (OpenAI, no MCP): two searches, two reads, two citations.</li>
+<li>LLM summaries on the <code>uv</code> docs: 81 of 81 after the fix below; rerun uses the cache; retry path for documents that fell back to offline verified (17 recovered on the second run).</li>
+</ul>
+<p>Bugs found: empty summaries from reasoning tokens eating a small completion budget; index budget too small for real summaries at 81 documents; Go example struct tag applied to two fields.</p>
+<h2 id="m3-measurement">M3: measurement</h2>
+<p>Adapters and harness changes are unit-tested with a mocked model API and a fake <code>claude</code> binary (<code>tests/test_eval.py</code>, 8 tests): ids read in order, cache replay without a model call, no caching of failed runs, max-turns handling, the Anthropic request shape, strict and surfaced variants, a Claude Code trace parse, a run with no tool calls flagged as an error, and refusal of a server interpreter without the <code>mcp</code> extra. An import-hygiene test asserts the core and eval packages never import <code>mcp</code>; it caught a real violation on the first run.</p>
+<h3 id="the-agentic-rows-uv-docs-221-questions-k-5">The agentic rows, uv docs, 221 questions, k = 5</h3>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>config</th>
+<th>recall@5</th>
+<th>mrr@5</th>
+<th>ndcg@5 given hit</th>
+<th>faith</th>
+<th>n</th>
+<th>ms/q</th>
+<th>model tok/q</th>
+<th>calls/q</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>bm25</td>
+<td>0.923</td>
+<td>0.805</td>
+<td>0.905</td>
+<td></td>
+<td>221</td>
+<td>5</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr>
+<td>dense, text-embedding-3-small</td>
+<td>0.851</td>
+<td>0.738</td>
+<td>0.901</td>
+<td></td>
+<td>221</td>
+<td>366</td>
+<td>≈15</td>
+<td>0</td>
+</tr>
+<tr>
+<td>hybrid dense + bm25, RRF</td>
+<td><strong>0.964</strong></td>
+<td>0.821</td>
+<td>0.889</td>
+<td></td>
+<td>221</td>
+<td>69</td>
+<td>≈15</td>
+<td>0</td>
+</tr>
+<tr>
+<td>pull, ids read, gpt-5.4-mini, reasoning off</td>
+<td>0.045</td>
+<td>0.045</td>
+<td>1.000</td>
+<td>0.53</td>
+<td>221</td>
+<td>20,663</td>
+<td>12,405</td>
+<td>4.5</td>
+</tr>
+<tr>
+<td>pull, ids read, Claude Code (10-question seeded sample)</td>
+<td><strong>1.000</strong></td>
+<td>0.883</td>
+<td>0.913</td>
+<td>0.60</td>
+<td>10</td>
+<td>26,565</td>
+<td>86,656</td>
+<td>4.8</td>
+</tr>
+<tr>
+<td>pull, ids surfaced</td>
+<td>pending</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>pull, strict reads</td>
+<td>pending</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table></div>
+<p>Two pull rows tell one story. The small model with reasoning off made 4.5 tool calls a question, 3.6 of them <code>search</code>, and called <code>read</code> on only one question in twenty; it answered from the 20-token snippets, and when it did read, it read the right section (NDCG 1.0 given a hit). Claude Code, on a 10-question sample, searched, read the gold section on every question, and cited it, at about $0.30 a question. The pull pattern is only as good as the model's willingness to read, and the tool gives a weak model an easy way not to.</p>
+<p>Cost per question is the other half of the table. Push retrieval costs milliseconds and no model tokens. The pull loop costs 12k to 87k model tokens and 20 to 27 seconds. For a coding agent that already spends that, it is nothing; for a chat widget it is decisive.</p>
+<p><strong>Pending rows.</strong> The OpenAI account ran out of credits partway through the strict-reads run, after the ids-read run completed. The surfaced-ids row needs the loop re-run because the first run predates the field that records surfaced ids. Both are one command each once credits exist, on the 60-question seeded sample used for strict: <code>ragbisect run … --adapter examples/ragbisect_agentic.py:ApiLoopStrict --sample 60</code> and the same with <code>ApiLoopSurfaced</code>.</p>
+<h3 id="mistakes-made-while-measuring-and-what-changed">Mistakes made while measuring, and what changed</h3>
+<ul>
+<li>The first Claude Code sample cost $6.26 and measured nothing: the adapter launched the MCP server with the ephemeral <code>uv run</code> interpreter, which had the core but not the <code>mcp</code> extra, so the server never started and Claude Code answered from memory at length. The adapter now verifies the server interpreter can import the server at construction, and a run with zero ContextPull tool calls is recorded as an error and never cached.</li>
+<li>Adding the strict flag to the cache key orphaned the first run's 221 records; a replay meant to be free recomputed about 100 questions before the records were migrated. Cache keys are now part of what a change to the adapter must consider, and the runner's cache directory is ignored in both repos.</li>
+<li>Rate limiting made six-way concurrency behave like one-way; wall time per query includes back-off sleeps. The ms/q column for pull rows is therefore an upper bound under contention.</li>
+</ul>
+<h2 id="second-corpus-pydantic-docs-computed-shapes-only">Second corpus: pydantic docs (computed shapes only)</h2>
+<p>91 files, 802 sections. The table shape produced 10 unambiguous cell questions; ContextPull <code>search</code> found the gold section for all 10 (recall@5 1.000, MRR 0.80), bm25 for 9. A first attempt produced 24 questions at 0.50 recall for both configs, and inspection showed every miss was a constraints-table row repeated in ten sections; the generator now skips repeated row keys. No aggregation families: pydantic's error type names carry no digits and the family detector keys on digit patterns. Model-dependent shapes wait on credits. Details in <code>benchmarks/pydantic-docs-2026-09-14/</code>.</p>
+<h2 id="m4-so-far">M4 so far</h2>
+<ul>
+<li>PDF: a two-page fixture generated with reportlab (<code>conformance/corpus-pdf/warranty-terms.pdf</code>, four headings at 15 pt over 11 pt body) ingests into sections with the right heading paths; grep finds <code>WR-2201</code>; search finds the exclusions section for "surge".</li>
+<li>Hybrid: with a deterministic fake embedder, every section gets a vector, re-ingest embeds nothing new, a deleted document loses its vectors, the fused ranking keeps the lexical leaders on top, the path filter applies to the dense side, and a store without vectors falls back to lexical with a hint.</li>
+<li>Streamable HTTP: the server starts on a free port as a subprocess and the SDK's HTTP client initializes, sees the index in instructions, and runs a tool call.</li>
+</ul>
+<h2 id="not-yet-tested">Not yet tested</h2>
+<ul>
+<li>Hybrid search with a real embedding provider (pending API credits; plumbing tested with a fake embedder).</li>
+<li>PDFs with tables, scanned PDFs, PDFs whose body and heading sizes are close.</li>
+<li>Windows paths and case-insensitive filesystems.</li>
+<li>A second real corpus with large tables and versioned documents; the fixture corpus covers those shapes at small scale.</li>
+</ul></article></div>
+<footer><div class="wrap"><span>MIT · © 2026 Arunkumar S</span><a href="https://github.com/mi2arun/contextpull">github.com/mi2arun/contextpull</a><a href="https://pypi.org/project/contextpull/">PyPI</a><a href="https://www.npmjs.com/package/contextpull">npm</a><a href="https://github.com/mi2arun/ragbisect">ragbisect</a></div></footer>
+</body></html>

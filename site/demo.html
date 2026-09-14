@@ -1,0 +1,711 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ContextPull demo — push vs pull</title><meta name="description" content="Watch one comparison question go through classic push RAG and ContextPull&#x27;s pull loop side by side.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap"><link rel="stylesheet" href="site.css">
+</head><body>
+<div class="nav"><div class="wrap"><a class="brand" href="index.html">ContextPull <small style="color:var(--muted);font-weight:500;font-size:13px"> · pull, don’t push</small></a><div class="nav-links"><a href="index.html">ContextPull</a><a href="demo.html" class="active">Demo</a><a href="docs/index.html">Docs</a><a href="ragbisect.html">ragbisect</a><a href="https://github.com/mi2arun/contextpull">GitHub</a></div></div></div>
+<style>
+  :root {
+    --bg: #0f1317;
+    --bg-2: #151b21;
+    --surface: #1b232b;
+    --surface-2: #222c36;
+    --line: #2c3742;
+    --line-strong: #3b4956;
+    --text: #e4eaf0;
+    --text-2: #a7b3c0;
+    --muted: #6f7e8d;
+    --accent: #f0a93a;        /* the model's own tool calls */
+    --accent-ink: #1a1206;
+    --accent-soft: rgba(240, 169, 58, 0.14);
+    --push: #7ea2cc;          /* classic pipeline */
+    --push-soft: rgba(126, 162, 204, 0.14);
+    --good: #5ec98d;
+    --bad: #e2695f;
+    --bad-soft: rgba(226, 105, 95, 0.14);
+    --code-bg: #0b0f12;
+    --shadow: 0 1px 0 rgba(255,255,255,0.03) inset, 0 8px 24px rgba(0,0,0,0.35);
+    color-scheme: dark;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #f4f6f8;
+      --bg-2: #eceff3;
+      --surface: #ffffff;
+      --surface-2: #f2f5f8;
+      --line: #d9dfe6;
+      --line-strong: #b9c3ce;
+      --text: #171d24;
+      --text-2: #45515e;
+      --muted: #74818f;
+      --accent: #b8720c;
+      --accent-ink: #ffffff;
+      --accent-soft: rgba(184, 114, 12, 0.12);
+      --push: #3f668f;
+      --push-soft: rgba(63, 102, 143, 0.12);
+      --good: #1f8a52;
+      --bad: #c2453c;
+      --bad-soft: rgba(194, 69, 60, 0.10);
+      --code-bg: #f7f9fb;
+      --shadow: 0 1px 2px rgba(20,30,40,0.06), 0 8px 24px rgba(20,30,40,0.06);
+      color-scheme: light;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #f4f6f8;
+    --bg-2: #eceff3;
+    --surface: #ffffff;
+    --surface-2: #f2f5f8;
+    --line: #d9dfe6;
+    --line-strong: #b9c3ce;
+    --text: #171d24;
+    --text-2: #45515e;
+    --muted: #74818f;
+    --accent: #b8720c;
+    --accent-ink: #ffffff;
+    --accent-soft: rgba(184, 114, 12, 0.12);
+    --push: #3f668f;
+    --push-soft: rgba(63, 102, 143, 0.12);
+    --good: #1f8a52;
+    --bad: #c2453c;
+    --bad-soft: rgba(194, 69, 60, 0.10);
+    --code-bg: #f7f9fb;
+    --shadow: 0 1px 2px rgba(20,30,40,0.06), 0 8px 24px rgba(20,30,40,0.06);
+    color-scheme: light;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+    font-size: 16px;
+    line-height: 1.55;
+    padding-block: 0 96px;
+    padding-inline: clamp(16px, 4vw, 40px);
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; }
+  h1, h2, h3 {
+    font-family: "Bricolage Grotesque", "IBM Plex Sans", system-ui, sans-serif;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+    margin: 0;
+  }
+  h1 { font-size: clamp(38px, 6vw, 64px); line-height: 1.0; font-variation-settings: "opsz" 96; }
+  h2 { font-size: clamp(24px, 3vw, 32px); line-height: 1.15; }
+  h3 { font-size: 18px; font-weight: 600; }
+  p { margin: 0; max-width: 66ch; }
+  p + p { margin-top: 12px; }
+  a { color: inherit; }
+  code, pre, .mono {
+    font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.92em;
+  }
+  code { background: var(--surface-2); padding: 1px 6px; border-radius: 4px; border: 1px solid var(--line); }
+  .eyebrow {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  section { margin-top: 88px; }
+  .sec-head { display: grid; gap: 12px; margin-bottom: 28px; }
+  .lede { color: var(--text-2); font-size: 18px; }
+
+  /* ---------- hero ---------- */
+  header { padding-block: 64px 12px; display: grid; gap: 22px; }
+  .thesis { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 40px; align-items: end; }
+  .thesis p { font-size: 18px; color: var(--text-2); }
+  .claim {
+    border-left: 3px solid var(--accent);
+    padding: 6px 0 6px 18px;
+    font-family: "Bricolage Grotesque", sans-serif;
+    font-size: 20px; font-weight: 500; line-height: 1.35;
+    color: var(--text);
+  }
+  @media (max-width: 760px) { .thesis { grid-template-columns: 1fr; } }
+
+  /* ---------- demo ---------- */
+  .demo {
+    background: var(--bg-2);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 22px;
+    box-shadow: var(--shadow);
+  }
+  .demo-top { display: flex; flex-wrap: wrap; gap: 14px 24px; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+  .question {
+    display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap;
+    font-size: 17px;
+  }
+  .question .mono { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; }
+  .question q { font-weight: 600; quotes: "“" "”"; }
+  .controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  button {
+    font: inherit; font-weight: 600; font-size: 14px;
+    color: var(--text); background: var(--surface); border: 1px solid var(--line-strong);
+    border-radius: 8px; padding: 8px 14px; cursor: pointer;
+  }
+  button:hover { background: var(--surface-2); }
+  button:focus-visible, .speed:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  button.primary { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+  button.primary:hover { filter: brightness(1.06); }
+  button[disabled] { opacity: 0.5; cursor: default; }
+  .speed { font: inherit; font-size: 14px; color: var(--text); background: var(--surface); border: 1px solid var(--line-strong); border-radius: 8px; padding: 8px 10px; }
+
+  .lanes { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 820px) { .lanes { grid-template-columns: 1fr; } }
+  .lane {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 18px;
+    display: grid; gap: 14px;
+    align-content: start;
+  }
+  .lane-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+  .lane-head h3 { display: flex; align-items: center; gap: 10px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  .lane[data-lane="push"] .dot { background: var(--push); }
+  .lane[data-lane="pull"] .dot { background: var(--accent); }
+  .lane-head .mono { color: var(--muted); font-size: 12px; }
+
+  .flow { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+  .node {
+    position: relative;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 10px 12px 10px 40px;
+    background: var(--surface-2);
+    transition: opacity .3s ease, border-color .3s ease, box-shadow .3s ease, background .3s ease;
+  }
+  .node .who {
+    position: absolute; left: 10px; top: 11px;
+    width: 22px; height: 22px; border-radius: 6px;
+    display: grid; place-items: center;
+    font-family: "JetBrains Mono", monospace; font-size: 11px; font-weight: 600;
+    color: var(--text-2); background: var(--surface); border: 1px solid var(--line);
+  }
+  .node .who.llm { color: var(--accent); border-color: var(--accent); }
+  .node .who.sys { color: var(--push); border-color: var(--push); }
+  .node .title { font-weight: 600; font-size: 14px; }
+  .node .body { color: var(--text-2); font-size: 13.5px; margin-top: 3px; }
+  .node .body code { font-size: 12.5px; }
+  .node .chunks { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .chip {
+    font-family: "JetBrains Mono", monospace; font-size: 11.5px;
+    padding: 2px 8px; border-radius: 999px;
+    border: 1px solid var(--line-strong); color: var(--text-2); background: var(--surface);
+  }
+  .chip.hit { border-color: var(--good); color: var(--good); }
+  .chip.miss { border-color: var(--bad); color: var(--bad); background: var(--bad-soft); }
+  .chip.stale { border-style: dashed; }
+
+  .playing .node { opacity: 0.42; }
+  .playing .node.done { opacity: 1; }
+  .playing .node.active { opacity: 1; }
+  .lane[data-lane="push"] .node.active { border-color: var(--push); box-shadow: 0 0 0 3px var(--push-soft); }
+  .lane[data-lane="pull"] .node.active { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .node.active .title::after {
+    content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+    margin-left: 8px; vertical-align: middle; background: currentColor;
+    animation: pulse 1s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%, 100% { opacity: 0.25; } 50% { opacity: 1; } }
+
+  .verdict {
+    border-radius: 8px; padding: 10px 12px; font-size: 13.5px;
+    border: 1px solid var(--line); background: var(--surface-2);
+    display: grid; gap: 4px;
+    transition: opacity .3s ease;
+  }
+  .playing .verdict { opacity: 0.35; }
+  .playing .verdict.show { opacity: 1; }
+  .verdict b { font-weight: 600; }
+  .verdict.bad { border-color: var(--bad); }
+  .verdict.good { border-color: var(--good); }
+  .verdict .row { display: flex; flex-wrap: wrap; gap: 6px 14px; color: var(--text-2); }
+
+  .trace {
+    margin: 0; padding: 12px 14px; list-style: none;
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px;
+    font-family: "JetBrains Mono", monospace; font-size: 12.5px; line-height: 1.55;
+    min-height: 118px; color: var(--text-2);
+    overflow-x: auto;
+  }
+  .trace li { white-space: pre; }
+  .trace li.call { color: var(--accent); }
+  .trace li.sys { color: var(--push); }
+  .trace li.ok { color: var(--good); }
+  .trace li.warn { color: var(--bad); }
+  .trace li.dim { color: var(--muted); }
+  .trace li.new { animation: rise .25s ease-out; }
+  @keyframes rise { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+  .demo-note { margin-top: 14px; color: var(--muted); font-size: 13px; }
+
+  /* ---------- architecture ---------- */
+  figure { margin: 0; }
+  figure svg { max-width: 100%; height: auto; display: block; color: var(--text); }
+  figcaption { color: var(--muted); font-size: 14px; margin-top: 12px; max-width: 70ch; }
+  .arch { background: var(--bg-2); border: 1px solid var(--line); border-radius: 12px; padding: 22px; overflow-x: auto; }
+
+  /* ---------- table ---------- */
+  .cmp { width: 100%; border-collapse: collapse; font-size: 15px; }
+  .cmp th, .cmp td { text-align: left; vertical-align: top; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+  .cmp th { font-weight: 600; font-size: 13px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+  .cmp td:first-child { color: var(--text-2); font-weight: 500; width: 22%; }
+  .cmp th.push { color: var(--push); }
+  .cmp th.pull { color: var(--accent); }
+  .table-scroll { overflow-x: auto; }
+
+  /* ---------- benchmark ---------- */
+  .bench { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 15px; }
+  .bench th, .bench td { padding: 10px 14px; border-bottom: 1px solid var(--line); text-align: right; }
+  .bench th:first-child, .bench td:first-child { text-align: left; }
+  .bench th { font-size: 13px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  .bench tr.best td { color: var(--good); }
+  .bench tr.todo td { color: var(--muted); font-style: italic; }
+  .bench tr.todo td:first-child { color: var(--accent); font-style: normal; font-weight: 600; }
+  .bench-wrap { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 6px 4px; overflow-x: auto; }
+  .bench-meta { margin-top: 12px; color: var(--muted); font-size: 14px; max-width: 70ch; }
+
+  /* ---------- plan ---------- */
+  .plan { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 0; padding: 0; list-style: none; counter-reset: step; }
+  @media (max-width: 900px) { .plan { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 520px) { .plan { grid-template-columns: 1fr; } }
+  .plan li { border: 1px solid var(--line); border-radius: 10px; padding: 16px; background: var(--surface); display: grid; gap: 8px; align-content: start; }
+  .plan li::before {
+    counter-increment: step; content: "week " counter(step);
+    font-family: "JetBrains Mono", monospace; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent);
+  }
+  .plan h3 { font-size: 16px; }
+  .plan p { color: var(--text-2); font-size: 14px; }
+
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+  @media (max-width: 760px) { .two { grid-template-columns: 1fr; } }
+  ul.plain { margin: 0; padding-left: 18px; color: var(--text-2); }
+  ul.plain li + li { margin-top: 6px; }
+
+  footer { margin-top: 80px; color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); padding-top: 18px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .node, .verdict, .trace li.new { transition: none; animation: none; }
+    .node.active .title::after { animation: none; }
+  }
+
+body{padding-block:0 0} .wrap{max-width:1080px}</style>
+
+<div class="wrap">
+<header>
+  <div class="eyebrow">ContextPull · proposal · document retrieval for LLM agents</div>
+  <h1>ContextPull. <span style="color:var(--text-2);font-weight:500">Pull, don't push.</span></h1>
+  <div class="thesis">
+    <p>Classic RAG pushes the top-k chunks at the model before it has thought about the question. Claude Code works the other way round: a small index is always in context, and the model pulls exact content on demand with tools. ContextPull packages that pattern for any document corpus as an MCP server, and measures it honestly against the pipeline it replaces.</p>
+    <div class="claim">The model never receives content it did not ask for. It reads verbatim sections by ID, then generates.</div>
+  </div>
+</header>
+
+<!-- ============================== DEMO ============================== -->
+<section id="demo">
+  <div class="sec-head">
+    <div class="eyebrow">one question, two mechanisms</div>
+    <h2>Watch the same request go through both.</h2>
+    <p class="lede">A comparison question, the shape naive RAG fails hardest on. Press play, or step through. Amber marks a decision the model makes itself.</p>
+  </div>
+
+  <div class="demo" id="demoRoot">
+    <div class="demo-top">
+      <div class="question">
+        <span class="mono">USER</span>
+        <q>What changed in the refund window between the 2024 and 2025 policy?</q>
+      </div>
+      <div class="controls">
+        <button class="primary" id="playBtn" type="button">Play</button>
+        <button id="stepBtn" type="button">Step</button>
+        <button id="resetBtn" type="button">Reset</button>
+        <select class="speed" id="speed" aria-label="Playback speed">
+          <option value="1">1×</option>
+          <option value="1.6" selected>1.6×</option>
+          <option value="2.5">2.5×</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="lanes">
+      <!-- PUSH -->
+      <div class="lane" data-lane="push">
+        <div class="lane-head">
+          <h3><span class="dot"></span>Push · classic RAG</h3>
+          <span class="mono">retrieve → stuff → generate</span>
+        </div>
+        <ol class="flow">
+          <li class="node" data-step="p0"><span class="who sys">S</span>
+            <div class="title">Embed the question</div>
+            <div class="body">One vector for a question about two documents. <code>[0.12, -0.44, 0.08, …]</code></div>
+          </li>
+          <li class="node" data-step="p1"><span class="who sys">S</span>
+            <div class="title">Nearest neighbours, k = 5</div>
+            <div class="body">Both years score alike, so the store returns a blend, plus a stale year that happens to be close.</div>
+            <div class="chunks">
+              <span class="chip hit">policy-2025.md#3</span>
+              <span class="chip hit">policy-2024.md#3</span>
+              <span class="chip miss stale">policy-2023.md#3</span>
+              <span class="chip miss">faq.md#2</span>
+              <span class="chip miss">policy-2024.md#7</span>
+            </div>
+          </li>
+          <li class="node" data-step="p2"><span class="who sys">S</span>
+            <div class="title">Stuff the prompt</div>
+            <div class="body">Five chunks concatenated ahead of the question. The model has not chosen any of them.</div>
+          </li>
+          <li class="node" data-step="p3"><span class="who llm">M</span>
+            <div class="title">Generate</div>
+            <div class="body">“Refunds are accepted within 30 days of purchase. Store credit may be offered after that period.”</div>
+          </li>
+        </ol>
+        <div class="verdict bad" data-verdict="push">
+          <b>Fluent, and wrong.</b>
+          <div class="row"><span>30 days is the 2023 and 2024 rule</span><span>no diff was produced</span><span>nothing errored</span></div>
+        </div>
+        <ol class="trace" id="tracePush" aria-live="polite"><li class="dim">$ press play to run the request</li></ol>
+      </div>
+
+      <!-- PULL -->
+      <div class="lane" data-lane="pull">
+        <div class="lane-head">
+          <h3><span class="dot"></span>Pull · ContextPull</h3>
+          <span class="mono">index → decide → read → generate</span>
+        </div>
+        <ol class="flow">
+          <li class="node" data-step="q0"><span class="who llm">M</span>
+            <div class="title">Read the always-in-context index</div>
+            <div class="body">A table of contents with one line per document, about 2k tokens. Like <code>MEMORY.md</code> in Claude Code.</div>
+            <div class="chunks">
+              <span class="chip">policy-2023.md · refunds, superseded</span>
+              <span class="chip">policy-2024.md · refunds, shipping</span>
+              <span class="chip">policy-2025.md · refunds, credits</span>
+              <span class="chip">faq.md</span>
+            </div>
+          </li>
+          <li class="node" data-step="q1"><span class="who llm">M</span>
+            <div class="title">Decide what to fetch</div>
+            <div class="body">The question names two years. The model plans two reads, not one search.</div>
+          </li>
+          <li class="node" data-step="q2"><span class="who llm">M</span>
+            <div class="title">Call <code>search</code></div>
+            <div class="body"><code>search("refund window", in: ["policy-2024.md", "policy-2025.md"])</code> → two section IDs, with headings.</div>
+            <div class="chunks"><span class="chip hit">policy-2024.md#3 · Refund window</span><span class="chip hit">policy-2025.md#3 · Refund window</span></div>
+          </li>
+          <li class="node" data-step="q3"><span class="who llm">M</span>
+            <div class="title">Call <code>read</code> twice</div>
+            <div class="body">Verbatim text of each section, nothing else. 2024: “full refund within 30 days.” 2025: “full refund within 14 days; store credit to day 30.”</div>
+          </li>
+          <li class="node" data-step="q4"><span class="who llm">M</span>
+            <div class="title">Generate, with citations</div>
+            <div class="body">“The full-refund window shrank from 30 days to 14. Days 15–30 now give store credit instead. <code>[policy-2024.md#3]</code> <code>[policy-2025.md#3]</code>”</div>
+          </li>
+        </ol>
+        <div class="verdict good" data-verdict="pull">
+          <b>Correct, and checkable.</b>
+          <div class="row"><span>two cited sections</span><span>three tool calls</span><span>the stale 2023 doc was never read</span></div>
+        </div>
+        <ol class="trace" id="tracePull" aria-live="polite"><li class="dim">$ press play to run the request</li></ol>
+      </div>
+    </div>
+    <p class="demo-note">The refund policy corpus is an illustrative example. Measured numbers, including two pull rows, are further down.</p>
+  </div>
+</section>
+
+<!-- ============================== ARCHITECTURE ============================== -->
+<section id="arch">
+  <div class="sec-head">
+    <div class="eyebrow">what we would build</div>
+    <h2>ContextPull is an MCP server that makes a document folder feel like a codebase.</h2>
+    <p class="lede">Ingest once into a store with stable section IDs. Emit a compact index that lives in context. Expose four tools. The client can be Claude Code or any MCP host.</p>
+  </div>
+  <div class="arch">
+    <figure>
+      <svg viewBox="0 0 1040 380" role="img" aria-label="Documents are ingested once into a section store. The store powers an MCP server that keeps a two-thousand-token index in the model's context and answers search, read, grep and neighbours calls on demand with verbatim text and IDs. The model generates only after reading." xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+          </marker>
+          <marker id="arrowAccent" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="#f0a93a"/>
+          </marker>
+        </defs>
+        <g font-family="IBM Plex Sans, system-ui, sans-serif" font-size="13" fill="currentColor">
+          <!-- corpus -->
+          <rect x="20" y="130" width="170" height="120" rx="8" fill="none" stroke="currentColor" stroke-opacity="0.55"/>
+          <text x="105" y="158" text-anchor="middle" font-weight="600">Document corpus</text>
+          <text x="105" y="182" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11.5" fill-opacity="0.75">policy-2024.md</text>
+          <text x="105" y="200" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11.5" fill-opacity="0.75">policy-2025.md</text>
+          <text x="105" y="218" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11.5" fill-opacity="0.75">faq.md  ·  *.pdf</text>
+
+          <!-- ingest arrow -->
+          <line x1="190" y1="190" x2="258" y2="190" stroke="currentColor" stroke-width="1.5" marker-end="url(#arrow)"/>
+          <text x="224" y="176" text-anchor="middle" font-size="11.5" fill-opacity="0.75">ingest once</text>
+
+          <!-- store -->
+          <rect x="260" y="100" width="210" height="180" rx="8" fill="none" stroke="currentColor" stroke-opacity="0.55"/>
+          <text x="365" y="128" text-anchor="middle" font-weight="600">Section store</text>
+          <text x="280" y="156" font-size="12.5" fill-opacity="0.85">stable IDs</text>
+          <text x="280" y="176" font-size="11.5" font-family="JetBrains Mono, monospace" fill-opacity="0.7">policy-2025.md#3</text>
+          <text x="280" y="204" font-size="12.5" fill-opacity="0.85">heading path, neighbours</text>
+          <text x="280" y="228" font-size="12.5" fill-opacity="0.85">BM25 index</text>
+          <text x="280" y="252" font-size="12.5" fill-opacity="0.85">embeddings, optional</text>
+
+          <!-- store -> server -->
+          <line x1="470" y1="190" x2="538" y2="190" stroke="currentColor" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+          <!-- server -->
+          <rect x="540" y="60" width="220" height="260" rx="8" fill="none" stroke="currentColor" stroke-opacity="0.55"/>
+          <text x="650" y="88" text-anchor="middle" font-weight="600">ContextPull server</text>
+          <g font-family="JetBrains Mono, monospace" font-size="12" fill="#f0a93a">
+            <text x="560" y="124">index()</text>
+            <text x="560" y="164">search(q, in?)</text>
+            <text x="560" y="204">read(id)</text>
+            <text x="560" y="244">grep(pattern)</text>
+            <text x="560" y="284">neighbours(id)</text>
+          </g>
+          <g font-size="11" fill-opacity="0.65">
+            <text x="560" y="140">table of contents, ≈2k tokens</text>
+            <text x="560" y="180">IDs + headings, never bodies</text>
+            <text x="560" y="220">verbatim text of one section</text>
+            <text x="560" y="260">exact identifiers, error codes</text>
+            <text x="560" y="300">the row's header, the next clause</text>
+          </g>
+
+          <!-- server -> model : index, always -->
+          <line x1="760" y1="124" x2="838" y2="124" stroke="#f0a93a" stroke-width="1.5" marker-end="url(#arrowAccent)"/>
+          <text x="799" y="110" text-anchor="middle" font-size="11.5" fill="#f0a93a">always in context</text>
+
+          <!-- model -> server : calls, on demand -->
+          <line x1="838" y1="210" x2="760" y2="210" stroke="#f0a93a" stroke-width="1.5" marker-end="url(#arrowAccent)"/>
+          <text x="799" y="196" text-anchor="middle" font-size="11.5" fill="#f0a93a">calls, on demand</text>
+          <line x1="760" y1="250" x2="838" y2="250" stroke="#f0a93a" stroke-width="1.5" marker-end="url(#arrowAccent)"/>
+          <text x="799" y="272" text-anchor="middle" font-size="11.5" fill="#f0a93a">verbatim + id</text>
+
+          <!-- model -->
+          <rect x="840" y="60" width="180" height="260" rx="8" fill="none" stroke="#f0a93a" stroke-width="1.5"/>
+          <text x="930" y="88" text-anchor="middle" font-weight="600">Model</text>
+          <text x="930" y="112" text-anchor="middle" font-size="11.5" fill-opacity="0.7">Claude Code, any MCP host</text>
+          <text x="930" y="160" text-anchor="middle" font-size="12.5">reads index</text>
+          <text x="930" y="184" text-anchor="middle" font-size="12.5">decides what to fetch</text>
+          <text x="930" y="208" text-anchor="middle" font-size="12.5">reads sections</text>
+          <text x="930" y="232" text-anchor="middle" font-size="12.5">repeats if needed</text>
+          <line x1="870" y1="252" x2="990" y2="252" stroke="currentColor" stroke-opacity="0.3"/>
+          <text x="930" y="278" text-anchor="middle" font-size="12.5" font-weight="600">then generates</text>
+          <text x="930" y="298" text-anchor="middle" font-size="11.5" fill-opacity="0.7">with section IDs as citations</text>
+
+          <!-- the removed edge -->
+          <line x1="365" y1="290" x2="365" y2="350" stroke="currentColor" stroke-opacity="0.35" stroke-dasharray="4 4"/>
+          <line x1="365" y1="350" x2="838" y2="350" stroke="currentColor" stroke-opacity="0.35" stroke-dasharray="4 4"/>
+          <line x1="600" y1="338" x2="612" y2="362" stroke="#e2695f" stroke-width="2"/>
+          <line x1="612" y1="338" x2="600" y2="362" stroke="#e2695f" stroke-width="2"/>
+          <text x="470" y="372" text-anchor="middle" font-size="11.5" fill-opacity="0.7">the push edge: top-k chunks straight into the prompt. Removed.</text>
+        </g>
+      </svg>
+      <figcaption>Two arrows carry the whole argument. The index arrow is always on and small. The read arrow only fires when the model asks. The dashed edge at the bottom is what classic RAG does and what this design deletes.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ============================== COMPARISON ============================== -->
+<section id="compare">
+  <div class="sec-head">
+    <div class="eyebrow">what actually changes</div>
+    <h2>Same store. Different controller.</h2>
+  </div>
+  <div class="table-scroll">
+    <table class="cmp">
+      <thead><tr><th></th><th class="push">Push · classic RAG</th><th class="pull">Pull · ContextPull</th></tr></thead>
+      <tbody>
+        <tr><td>Who decides what is retrieved</td><td>The pipeline, from one embedding of the raw question</td><td>The model, after reading the index and thinking about the question</td></tr>
+        <tr><td>What the model sees</td><td>k chunks it did not choose, relevant or not</td><td>Only sections it asked for, verbatim, with IDs</td></tr>
+        <tr><td>Comparison and aggregation questions</td><td>One blended query returns a mush of both documents, or misses a source entirely</td><td>Several targeted reads, then reasoning across them</td></tr>
+        <tr><td>Exact lookups</td><td>Embeddings blur identifiers; needs a separate BM25 path</td><td><code>grep</code> is a first-class tool</td></tr>
+        <tr><td>Tables</td><td>Chunking cuts the row from its header</td><td><code>neighbours</code> returns the header with the row</td></tr>
+        <tr><td>Citations</td><td>Post-hoc, often approximate</td><td>The section ID the model read</td></tr>
+        <tr><td>Cost</td><td>Predictable: one embed, one prompt</td><td>Variable: more calls, more latency, more tokens on hard questions</td></tr>
+        <tr><td>Failure mode</td><td>Silent. The answer is fluent from the wrong chunks</td><td>Visible. The trace shows what was read, and the model can say it found nothing</td></tr>
+        <tr><td>Where it can still fail</td><td>Retrieval</td><td>Retrieval. A bad index or a weak <code>search</code> still misses. The loop fixes ranking, not recall</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============================== BENCHMARK ============================== -->
+<section id="bench">
+  <div class="sec-head">
+    <div class="eyebrow">how we will know</div>
+    <h2>The agentic row goes in the same table as everything else.</h2>
+    <p class="lede">We already have the measuring instrument. ragbisect builds an eval set from the corpus, scores each retrieval stage on its own, and prints what a run spent. An agentic retriever fits its one-method adapter: run the loop, return the section IDs the model read.</p>
+  </div>
+  <div class="bench-wrap">
+    <table class="bench">
+      <thead><tr><th>config</th><th>recall@5</th><th>mrr@5</th><th>ndcg@5 given hit</th><th>tokens / query</th></tr></thead>
+      <tbody>
+        <tr><td>bm25</td><td>0.923</td><td>0.805</td><td>0.905</td><td>0</td></tr>
+        <tr><td>dense, text-embedding-3-small</td><td>0.851</td><td>0.738</td><td>0.901</td><td>≈ 15</td></tr>
+        <tr class="best"><td>hybrid dense + bm25, RRF</td><td>0.964</td><td>0.821</td><td>0.889</td><td>≈ 15</td></tr>
+        <tr class="best"><td>ContextPull pull, Claude Code (10-question sample)</td><td>1.000</td><td>0.883</td><td>0.913</td><td>≈ 86,700</td></tr>
+        <tr><td>ContextPull pull, gpt-5.4-mini reasoning off</td><td>0.045</td><td>0.045</td><td>1.000</td><td>≈ 12,400</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="bench-meta">Measured on the <code>uv</code> documentation, 603 ContextPull sections, 221 self-generated questions in two shapes, recall@5. Two pull rows, one lesson: a strong agent reads the right section on every sampled question, a small model with reasoning off answers from search snippets and reads on one question in twenty. Push costs milliseconds and no model tokens; pull costs tens of thousands of tokens a question. Full table and the mistakes made while measuring are in the ContextPull docs.</p>
+</section>
+
+<!-- ============================== PLAN ============================== -->
+<section id="plan">
+  <div class="sec-head">
+    <div class="eyebrow">build plan</div>
+    <h2>Four weeks to a number.</h2>
+  </div>
+  <ol class="plan">
+    <li><h3>Ingest and store</h3><p>Markdown, text, then PDF. Heading-aware sectioning with stable IDs, heading paths, neighbours, a BM25 index. Reuse the ragbisect chunker and corpus code.</p></li>
+    <li><h3>ContextPull server</h3><p>Five tools: <code>index</code>, <code>search</code>, <code>read</code>, <code>grep</code>, <code>neighbours</code>. Stdio transport first. Ships as <code>contextpull</code> on PyPI and npm. Works in Claude Code with one config line.</p></li>
+    <li><h3>Agentic adapter</h3><p>A ragbisect adapter that runs the tool loop against ContextPull and returns the section IDs read. Fill the blank row. Include tokens and latency per query.</p></li>
+    <li><h3>Publish, including the losses</h3><p>All five question shapes, several corpora, both pipelines. Where pull does not help, say so. That is the whole positioning.</p></li>
+  </ol>
+</section>
+
+<!-- ============================== OPEN QUESTIONS ============================== -->
+<section id="open">
+  <div class="two">
+    <div>
+      <div class="sec-head" style="margin-bottom:16px">
+        <div class="eyebrow">what we are betting on</div>
+        <h2>Why now</h2>
+      </div>
+      <ul class="plain">
+        <li>Context windows are large enough that a 2k-token index for a whole corpus is cheap to keep resident.</li>
+        <li>Models are good at multi-step tool use. A wrong first search gets corrected instead of being stuffed into the prompt.</li>
+        <li>MCP gives a standard way to attach the store to Claude Code, Claude Desktop and other hosts without a rewrite.</li>
+        <li>Nobody publishes the comparison. The measurement is the moat.</li>
+      </ul>
+    </div>
+    <div>
+      <div class="sec-head" style="margin-bottom:16px">
+        <div class="eyebrow">still open</div>
+        <h2>What could sink it</h2>
+      </div>
+      <ul class="plain">
+        <li>Large corpora. A 2k-token index does not cover 50,000 documents. Hierarchical indexes or a first-hop search are needed past some size.</li>
+        <li>Latency. Three tool calls is three round trips. Fine for a coding agent, maybe not for a chat widget.</li>
+        <li>Prior art overlaps: MCP filesystem servers, agentic RAG in LlamaIndex and LangGraph. The differentiator has to be the index design and the numbers.</li>
+        <li>A weak <code>search</code> tool makes the whole loop weak. The store still has to be good.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<footer>ContextPull proposal draft, September 2026. The refund policy demo is illustrative. Benchmark figures come from a ragbisect run on the uv docs on 13 September 2026.</footer>
+</div>
+
+<script>
+(function () {
+  const root = document.getElementById('demoRoot');
+  const playBtn = document.getElementById('playBtn');
+  const stepBtn = document.getElementById('stepBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const speedSel = document.getElementById('speed');
+  const tracePush = document.getElementById('tracePush');
+  const tracePull = document.getElementById('tracePull');
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // One timeline, two lanes. Each event lights a node and appends trace lines.
+  const T = [
+    { lane: 'push', node: 'p0', ms: 1400, lines: [['sys', 'embed(question)            → 1536-d vector']] },
+    { lane: 'pull', node: 'q0', ms: 1400, lines: [['dim', 'context: index() · 4 documents · 1,980 tokens']] },
+    { lane: 'push', node: 'p1', ms: 2200, lines: [['sys', 'knn(k=5)                   → 5 chunks'], ['warn', '  3 of 5 are off-target, one is superseded']] },
+    { lane: 'pull', node: 'q1', ms: 1600, lines: [['dim', 'model: two years named → plan two reads']] },
+    { lane: 'push', node: 'p2', ms: 1600, lines: [['sys', 'prompt = 5 chunks + question'], ['dim', '  model did not choose any of them']] },
+    { lane: 'pull', node: 'q2', ms: 2000, lines: [['call', 'search("refund window", in: [2024, 2025])'], ['ok', '  → policy-2024.md#3, policy-2025.md#3']] },
+    { lane: 'push', node: 'p3', ms: 2000, lines: [['sys', 'generate()'], ['warn', '  "within 30 days…"  ← 2023/2024 rule, no diff']] },
+    { lane: 'pull', node: 'q3', ms: 2200, lines: [['call', 'read("policy-2024.md#3")   → 212 chars'], ['call', 'read("policy-2025.md#3")   → 248 chars']] },
+    { lane: 'pull', node: 'q4', ms: 2000, lines: [['ok', 'generate()  30 → 14 days; credit to day 30'], ['ok', '  cites [policy-2024.md#3] [policy-2025.md#3]']] },
+  ];
+
+  let i = 0, timer = null, playing = false;
+  const nodes = () => root.querySelectorAll('.node');
+  const traceFor = lane => lane === 'push' ? tracePush : tracePull;
+
+  function clearTraces() {
+    for (const t of [tracePush, tracePull]) {
+      t.innerHTML = '';
+      const li = document.createElement('li'); li.className = 'dim'; li.textContent = '$ running…';
+      t.appendChild(li);
+    }
+  }
+  function reset() {
+    stop();
+    i = 0;
+    root.classList.remove('playing');
+    nodes().forEach(n => n.classList.remove('active', 'done'));
+    root.querySelectorAll('.verdict').forEach(v => v.classList.remove('show'));
+    for (const t of [tracePush, tracePull]) {
+      t.innerHTML = '<li class="dim">$ press play to run the request</li>';
+    }
+    stepBtn.disabled = false;
+    playBtn.textContent = 'Play';
+  }
+  function applyEvent(ev) {
+    const lane = root.querySelector(`.lane[data-lane="${ev.lane}"]`);
+    lane.querySelectorAll('.node.active').forEach(n => { n.classList.remove('active'); n.classList.add('done'); });
+    const node = lane.querySelector(`[data-step="${ev.node}"]`);
+    node.classList.add('active');
+    const t = traceFor(ev.lane);
+    if (t.firstChild && t.firstChild.classList.contains('dim') && t.children.length === 1 && /running|press play/.test(t.firstChild.textContent)) t.innerHTML = '';
+    for (const [cls, text] of ev.lines) {
+      const li = document.createElement('li'); li.className = cls + (reduced ? '' : ' new'); li.textContent = text;
+      t.appendChild(li);
+    }
+    t.scrollTop = t.scrollHeight;
+  }
+  function finishLane(lane) {
+    const l = root.querySelector(`.lane[data-lane="${lane}"]`);
+    l.querySelectorAll('.node.active').forEach(n => { n.classList.remove('active'); n.classList.add('done'); });
+    l.querySelector('.verdict').classList.add('show');
+  }
+  function laneDoneAfter(idx, lane) {
+    return !T.slice(idx + 1).some(e => e.lane === lane);
+  }
+  function step() {
+    if (i === 0) { root.classList.add('playing'); clearTraces(); }
+    if (i >= T.length) { return false; }
+    const ev = T[i];
+    applyEvent(ev);
+    if (laneDoneAfter(i, ev.lane)) finishLane(ev.lane);
+    i++;
+    if (i >= T.length) { stepBtn.disabled = true; playBtn.textContent = 'Replay'; playing = false; }
+    return true;
+  }
+  function schedule() {
+    if (!playing) return;
+    if (i >= T.length) { playing = false; playBtn.textContent = 'Replay'; return; }
+    const ms = reduced ? 400 : T[i].ms / parseFloat(speedSel.value);
+    step();
+    timer = setTimeout(schedule, ms);
+  }
+  function stop() { playing = false; if (timer) { clearTimeout(timer); timer = null; } }
+  function play() {
+    if (i >= T.length) { reset(); }
+    if (playing) { stop(); playBtn.textContent = 'Play'; return; }
+    playing = true; playBtn.textContent = 'Pause';
+    schedule();
+  }
+
+  playBtn.addEventListener('click', play);
+  stepBtn.addEventListener('click', () => { stop(); playBtn.textContent = i >= T.length - 1 ? 'Replay' : 'Play'; step(); });
+  resetBtn.addEventListener('click', reset);
+})();
+</script>
+
+<footer><div class="wrap"><span>MIT · © 2026 Arunkumar S</span><a href="https://github.com/mi2arun/contextpull">github.com/mi2arun/contextpull</a><a href="https://pypi.org/project/contextpull/">PyPI</a><a href="https://www.npmjs.com/package/contextpull">npm</a><a href="https://github.com/mi2arun/ragbisect">ragbisect</a></div></footer>
+</body></html>
