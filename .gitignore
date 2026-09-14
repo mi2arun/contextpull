@@ -11,3 +11,4 @@ go.sum
 sdk/typescript/dist/
 sdk/typescript/tools.json
 .contextpull-eval/
+sdk/go/contextpull-server

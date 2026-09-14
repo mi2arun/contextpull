@@ -193,3 +193,73 @@ def test_node_server_matches_python_over_mcp(fixture_store):
     assert py[0] == js[0]  # identical instructions, including the index text
     assert py[1] == js[1]  # identical ranking
     assert py[2] == js[2]  # identical verbatim text
+
+
+def _go_binary(tmp_path):
+    import shutil
+    import subprocess
+    from pathlib import Path as _P
+
+    go = shutil.which("go")
+    src = _P(__file__).resolve().parent.parent / "sdk" / "go"
+    if not go or not (src / "go.mod").exists():
+        pytest.skip("go toolchain or sdk/go not available")
+    out = tmp_path / "contextpull-server"
+    r = subprocess.run([go, "build", "-o", str(out), "./cmd/contextpull-server"], cwd=src, capture_output=True, text=True)
+    if r.returncode != 0:
+        pytest.fail(f"go build failed: {r.stderr[:500]}")
+    return out
+
+
+def test_go_server_matches_python_over_stdio(fixture_store, tmp_path):
+    binary = _go_binary(tmp_path)
+
+    async def run(params):
+        async with stdio_client(params) as (read, write):
+            async with ClientSession(read, write) as session:
+                init = await session.initialize()
+                tools = sorted(t.name for t in (await session.list_tools()).tools)  # order is not part of the contract
+                found = json.loads(_text(await session.call_tool("search", {"query": "refund window", "in": ["policies/policy-2024.md", "policies/policy-2025.md"]})))
+                read_ = json.loads(_text(await session.call_tool("read", {"id": "specs.md#1", "context": 1})))
+                err = await session.call_tool("read", {"id": "nope.md#0"})
+                res = (await session.read_resource(INDEX_URI)).contents[0].text
+                return init.instructions, tools, [h["id"] for h in found["hits"]], read_["text"], [c["id"] for c in read_["context"]], err.is_error, res
+
+    py = asyncio.run(run(StdioServerParameters(command=sys.executable, args=["-m", "contextpull.cli", "serve", str(fixture_store)])))
+    go = asyncio.run(run(StdioServerParameters(command=str(binary), args=["serve", str(fixture_store)])))
+    assert py == go
+
+
+def test_go_server_streamable_http(fixture_store, tmp_path):
+    import socket
+    import subprocess
+    import time
+
+    from mcp.client.streamable_http import streamable_http_client
+
+    binary = _go_binary(tmp_path)
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        port = s.getsockname()[1]
+    proc = subprocess.Popen([str(binary), "serve", str(fixture_store), "--http", f"127.0.0.1:{port}"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    try:
+        deadline = time.time() + 20
+        while time.time() < deadline:
+            try:
+                with socket.create_connection(("127.0.0.1", port), timeout=0.5):
+                    break
+            except OSError:
+                time.sleep(0.2)
+
+        async def run():
+            async with streamable_http_client(f"http://127.0.0.1:{port}/mcp") as streams:
+                async with ClientSession(streams[0], streams[1]) as session:
+                    init = await session.initialize()
+                    assert "ContextPull index · 7 documents" in init.instructions
+                    res = await session.call_tool("grep", {"pattern": "TX-45"})
+                    return json.loads(_text(res))["matches"][0]["id"]
+
+        assert asyncio.run(run()).startswith("errors.md#")
+    finally:
+        proc.terminate()
+        proc.wait(timeout=10)

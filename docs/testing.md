@@ -117,6 +117,8 @@ Cost per question is the other half of the table. Push retrieval costs milliseco
 
 - Office: docx, xlsx and pptx fixtures are generated in-test as minimal OOXML zips (`tests/test_office.py`); headings, lists, tables, shared strings and slide titles parse as specified, a corrupt file is skipped with a reason, and grep and search find identifiers and table cells inside them.
 
+- Go: `cmd/contextpull-conformance` passes 23/23; the Python MCP client compares the Go binary with the Python server over stdio (instructions, tool list, search ranking, read text and context ids, error result, resource text: all equal) and exercises the Go streamable HTTP endpoint.
+
 ## Not yet tested
 
 - Real-world Office files with tracked changes, merged cells, nested tables or formulas without cached values.

@@ -1,0 +1,141 @@
+{
+  "version": "1.0",
+  "tools": [
+    {
+      "name": "index",
+      "description": "Table of contents of the corpus: one line per document with its path, summary and section count. Usually already in your context; call it if you see no index, or with a prefix to expand a directory. Search for pointers, read for text, cite ids like [path.md#3].",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "prefix": {
+            "type": "string",
+            "description": "Path prefix to expand, e.g. 'guides/'"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "search",
+      "description": "Find sections by words or identifiers. Returns ids, heading paths and short snippets, never full text. Use in= with document paths from the index to target specific documents (for comparisons, search each). Search for pointers, read for text, cite ids like [path.md#3].",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Words, quoted phrases, or identifiers"
+          },
+          "in": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Document paths or globs to restrict to"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50,
+            "default": 10
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "lexical",
+              "hybrid"
+            ],
+            "default": "lexical"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "read",
+      "description": "Return one section verbatim by id, with its heading path and neighbour ids. context=n also returns n sections before and after. Table parts always begin with the header row. Search for pointers, read for text, cite ids like [path.md#3].",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Section id from search, grep or the index"
+          },
+          "context": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 5,
+            "default": 0
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "grep",
+      "description": "Exact substring (or regex) match across sections. For error codes, flags, environment variables, part numbers: anything search may blur. Returns the matching line and section id. On large corpora pass in= to keep it fast. Search for pointers, read for text, cite ids like [path.md#3].",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "pattern": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "in": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "regex": {
+            "type": "boolean",
+            "default": false
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 20
+          }
+        },
+        "required": [
+          "pattern"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "neighbours",
+      "description": "Sections adjacent to a given one, in document order: the clause before a definition, the next step, or a table's header row (returned as 'header' when the id is part of a split table). Search for pointers, read for text, cite ids like [path.md#3].",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "before": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 5,
+            "default": 1
+          },
+          "after": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 5,
+            "default": 1
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ]
+}

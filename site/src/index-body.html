@@ -19,7 +19,8 @@
     </div>
     <div class="install">
       <div><div class="lbl">Claude Code</div><pre><code>claude mcp add contextpull -- uvx --from "contextpull[mcp]" contextpull serve ./docs</code></pre></div>
-      <div><div class="lbl">Any MCP host, Node</div><pre><code>npx -y contextpull serve ./docs/.contextpull/store.sqlite</code></pre></div>
+      <div><div class="lbl">Any MCP host, Node or Go</div><pre><code>npx -y contextpull serve ./docs/.contextpull/store.sqlite
+./contextpull-server serve store.sqlite --http 0.0.0.0:8765   # Go, one static binary</code></pre></div>
       <div><div class="lbl">Python library</div><pre><code>pip install contextpull
 from contextpull import Store, Ops
 ops = Ops(Store.open(".contextpull/store.sqlite"))
@@ -69,7 +70,7 @@ ops.search("refund window", in_=["policy-2025.md"])</code></pre></div>
   <div class="two">
     <div class="card"><h3>Open MCP hosts</h3><p>Claude Code, Claude Desktop, Cursor and others attach the server over stdio; a shared read-only server speaks streamable HTTP. The Python server needs the <code>mcp</code> extra; the Node server needs nothing but Node.</p></div>
     <div class="card"><h3>Your own client</h3><p>Import the Python library, or use <code>tools.json</code> with the Anthropic or OpenAI API directly. MIT licensed, no network calls in the core, so it embeds in air-gapped products. The <a href="docs/embedding.html">embedding guide</a> covers ingest, access control and versioning.</p></div>
-    <div class="card"><h3>Other languages</h3><p>The SQLite store is the contract. A conformance suite defines correctness; the TypeScript reader passes it and returns byte-identical results to Python over MCP. Go is next.</p></div>
+    <div class="card"><h3>Other languages</h3><p>The SQLite store is the contract. A conformance suite defines correctness; the TypeScript reader and the Go single-binary server both pass it and return byte-identical results to Python over MCP.</p></div>
     <div class="card"><h3>Honest measurement</h3><p><a href="ragbisect.html">ragbisect</a>, the companion harness, builds an eval set from your corpus in five question shapes and scores each retrieval stage on its own. ContextPull is just another row.</p></div>
   </div>
 </div></section>

@@ -94,6 +94,17 @@ claude mcp add contextpull -- npx -y contextpull serve /path/store.sqlite
 
 It passes the same conformance suite as the Python reference and returns identical results over MCP. Ingest stays in Python (`npx contextpull ingest` delegates to `uvx contextpull ingest`).
 
+## Go
+
+`sdk/go/` is a store-native reader and a single static binary server, pure Go, no cgo: the shape for a shared read-only deployment.
+
+```sh
+cd sdk/go && go build -o contextpull-server ./cmd/contextpull-server
+./contextpull-server serve /data/store.sqlite --http 0.0.0.0:8765    # or without --http for stdio
+```
+
+Same conformance suite, identical results to Python over MCP.
+
 ## Other languages
 
 The store file is the contract. `docs/store-format.md` says what a reader must do; `conformance/` holds a fixture corpus, its store and expected results. An SDK in any language is done when `check` passes. See the [SDK plan](docs/sdk-plan.md).

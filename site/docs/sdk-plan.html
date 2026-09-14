@@ -68,7 +68,7 @@
 </ul>
 <p><strong>Status.</strong> <code>sdk/typescript/</code> holds the reader (<code>Store</code>), the tool dispatcher, the native stdio server and the conformance runner, about 400 lines over <code>better-sqlite3</code> and the official TypeScript MCP SDK. It passes all 23 conformance cases, and a cross-implementation test (<code>tests/test_mcp.py::test_node_server_matches_python_over_mcp</code>) confirms the Node and Python servers return identical instructions, rankings and section text over MCP. Published to npm as <code>contextpull</code> 0.1.0 on 2026-09-14.
 - Framework adapters as separate small packages when asked: a LangChain.js retriever, a Vercel AI SDK tool set. Thin, and they call the reader SDK.</p>
-<h3 id="tier-2-go-at-m4">Tier 2 — Go, at M4</h3>
+<h3 id="tier-2-go-at-m4-built-2026-09-14">Tier 2 — Go, at M4 · built 2026-09-14</h3>
 <p>For the shared, read-only deployment: one static binary serving the store over streamable HTTP, built in CI next to the store file.</p>
 <p>Go module <code>github.com/&lt;org&gt;/contextpull-go</code>:</p>
 <ul>
@@ -76,6 +76,7 @@
 <li><code>cmd/contextpull-server</code> speaking MCP streamable HTTP. Same instructions, same delivery rules.</li>
 <li>Read-only by design; ingest remains Python.</li>
 </ul>
+<p><strong>Status.</strong> <code>sdk/go/</code>: reader (<code>store.go</code>), <code>cmd/contextpull-server</code> (stdio and streamable HTTP, tools embedded from <code>tools.json</code>), <code>cmd/contextpull-conformance</code>. Pure Go over <code>modernc.org/sqlite</code>, no cgo, one 18 MB static binary. 23/23 conformance; the Python MCP client gets identical instructions, tool lists, rankings, section text and error results from the Go and Python servers (<code>tests/test_mcp.py::test_go_server_matches_python_over_stdio</code>). Not yet published as a tagged Go module release.</p>
 <h3 id="tier-3-java-and-kotlin-c-rust-on-demand">Tier 3 — Java and Kotlin, C#, Rust, on demand</h3>
 <p>Each is a reader plus, optionally, a server. The conformance suite makes them tractable for outside contributors: the spec is executable. We publish the suite and a contributor guide, and accept an SDK into the org when it passes.</p>
 <p>Framework adapters for Python itself, a LangChain <code>BaseRetriever</code> and a LlamaIndex <code>BaseRetriever</code>, are Tier 1 work in the Python package, gated on someone asking.</p>

@@ -50,7 +50,7 @@
 <li>Hierarchical index for corpora past the budget; <code>index(prefix)</code> drill-down. <strong>Built in M1/M2</strong> (flat, compact, hierarchical, budget always honoured).</li>
 <li>Optional embeddings and <code>search(mode="hybrid")</code>. <strong>Built</strong>, tested with a fake embedder; a real-provider run is pending on API credits.</li>
 <li>Streamable HTTP transport for the shared, read-only deployment. <strong>Built</strong> (<code>serve --transport http</code>), tested end to end with the SDK client.</li>
-<li>Go reader and single-binary server for the shared deployment.</li>
+<li>Go reader and single-binary server for the shared deployment. <strong>Built</strong> 2026-09-14: <code>sdk/go/</code>, 23/23 conformance, identical to Python over MCP, stdio and HTTP.</li>
 <li>Published benchmark across two or more corpora and all five question shapes, including cases where pull loses. <strong>Partly</strong>: ragbisect now generates all five shapes (comparison needs a model call per pair; aggregation and table are computed). The <code>uv</code> docs support only 5 structured questions (all table); the pydantic docs were added as the second corpus (10 unambiguous table questions, search 1.000 vs bm25 0.900; migration guide available for comparison once credits exist). Model-dependent shapes and the agentic rows on the second corpus need API credits.</li>
 </ul>
 <p><strong>Acceptance.</strong> A second corpus with tables and versioned documents supports all five shapes in ragbisect. The write-up names at least one shape or corpus where hybrid push is the better choice and says why.</p>

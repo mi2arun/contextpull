@@ -53,7 +53,7 @@ Nine MCP tests pass over in-memory streams and a real stdio subprocess, includin
 - Hierarchical index for corpora past the budget; `index(prefix)` drill-down. **Built in M1/M2** (flat, compact, hierarchical, budget always honoured).
 - Optional embeddings and `search(mode="hybrid")`. **Built**, tested with a fake embedder; a real-provider run is pending on API credits.
 - Streamable HTTP transport for the shared, read-only deployment. **Built** (`serve --transport http`), tested end to end with the SDK client.
-- Go reader and single-binary server for the shared deployment.
+- Go reader and single-binary server for the shared deployment. **Built** 2026-09-14: `sdk/go/`, 23/23 conformance, identical to Python over MCP, stdio and HTTP.
 - Published benchmark across two or more corpora and all five question shapes, including cases where pull loses. **Partly**: ragbisect now generates all five shapes (comparison needs a model call per pair; aggregation and table are computed). The `uv` docs support only 5 structured questions (all table); the pydantic docs were added as the second corpus (10 unambiguous table questions, search 1.000 vs bm25 0.900; migration guide available for comparison once credits exist). Model-dependent shapes and the agentic rows on the second corpus need API credits.
 
 **Acceptance.** A second corpus with tables and versioned documents supports all five shapes in ragbisect. The write-up names at least one shape or corpus where hybrid push is the better choice and says why.

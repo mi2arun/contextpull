@@ -46,7 +46,7 @@ npm package `contextpull`:
 **Status.** `sdk/typescript/` holds the reader (`Store`), the tool dispatcher, the native stdio server and the conformance runner, about 400 lines over `better-sqlite3` and the official TypeScript MCP SDK. It passes all 23 conformance cases, and a cross-implementation test (`tests/test_mcp.py::test_node_server_matches_python_over_mcp`) confirms the Node and Python servers return identical instructions, rankings and section text over MCP. Published to npm as `contextpull` 0.1.0 on 2026-09-14.
 - Framework adapters as separate small packages when asked: a LangChain.js retriever, a Vercel AI SDK tool set. Thin, and they call the reader SDK.
 
-### Tier 2 — Go, at M4
+### Tier 2 — Go, at M4 · built 2026-09-14
 
 For the shared, read-only deployment: one static binary serving the store over streamable HTTP, built in CI next to the store file.
 
@@ -55,6 +55,8 @@ Go module `github.com/<org>/contextpull-go`:
 - Reader package with the five operations over `modernc.org/sqlite` (pure Go, FTS5 included, no cgo).
 - `cmd/contextpull-server` speaking MCP streamable HTTP. Same instructions, same delivery rules.
 - Read-only by design; ingest remains Python.
+
+**Status.** `sdk/go/`: reader (`store.go`), `cmd/contextpull-server` (stdio and streamable HTTP, tools embedded from `tools.json`), `cmd/contextpull-conformance`. Pure Go over `modernc.org/sqlite`, no cgo, one 18 MB static binary. 23/23 conformance; the Python MCP client gets identical instructions, tool lists, rankings, section text and error results from the Go and Python servers (`tests/test_mcp.py::test_go_server_matches_python_over_stdio`). Not yet published as a tagged Go module release.
 
 ### Tier 3 — Java and Kotlin, C#, Rust, on demand
 
