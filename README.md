@@ -30,7 +30,7 @@ A strong agent reads the right section every time; a small no-reasoning model re
 Fastest: `./scripts/demo.sh` ingests the bundled fixture corpus and walks through index, search, read and grep, then prints the exact `claude mcp add` line. `./scripts/demo.sh ./your-docs` does the same on your own folder.
 
 ```sh
-uv tool install contextpull            # or: pip install contextpull   (PyPI: contextpull 0.1.0)
+uv tool install contextpull            # or: pip install contextpull   (PyPI: contextpull 0.2.0)
 contextpull ingest ./docs              # writes .contextpull/store.sqlite
 contextpull index                      # the always-in-context table of contents
 contextpull search "refund window" --in policy-2025.md
