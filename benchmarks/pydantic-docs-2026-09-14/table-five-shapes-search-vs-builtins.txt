@@ -1,0 +1,27 @@
+wrote misses to /private/tmp/claude-501/-Users-arunkumars-Documents-GitHub-portx-stagewise/fcee66d3-a166-43d8-889a-8c189db454cd/scratchpad/pyd-misses-all.jsonl
+config                              recall@5    mrr@5   ndcg@5|hit    faith     n     ms/q    tok/q calls/q
+-----------------------------------------------------------------------------------------------------------
+your adapter                           0.870    0.708        0.855      n/a   231        6        —       —
+  comparison                             0.667    0.567        0.541      n/a     3       10                 
+  conceptual                             0.865    0.706        0.862      n/a   126        6                 
+  exact_lookup                           0.870    0.710        0.863      n/a    92        5                 
+  table                                  1.000    0.750        0.812      n/a    10        5                 
+bm25 (built-in)                        0.853    0.703        0.869      n/a   231        5        —       —
+  comparison                             0.667    0.444        0.772      n/a     3        6                 
+  conceptual                             0.857    0.731        0.890      n/a   126        7                 
+  exact_lookup                           0.848    0.671        0.845      n/a    92        3                 
+  table                                  0.900    0.720        0.850      n/a    10        3                 
+dense (built-in)                       0.844    0.709        0.875      n/a   231      350        —       —
+  comparison                             0.667    0.583        0.550      n/a     3      293                 
+  conceptual                             0.857    0.718        0.878      n/a   126      353                 
+  exact_lookup                           0.859    0.725        0.884      n/a    92      350                 
+  table                                  0.600    0.483        0.855      n/a    10      324                 
+hybrid dense+bm25 rrf (built-in)       0.900    0.773        0.894      n/a   231       81        —       —
+  comparison                             1.000    0.778        0.821      n/a     3       73                 
+  conceptual                             0.913    0.785        0.895      n/a   126       81                 
+  exact_lookup                           0.891    0.771        0.899      n/a    92       81                 
+  table                                  0.800    0.633        0.845      n/a    10       83                 
+Bottleneck for 'your adapter': ranking — when the gold chunk is retrieved it ranks at NDCG 0.86; MRR@5 is 0.71. Weakest shape: comparison (recall 0.67, n=3).
+'hybrid dense+bm25 rrf (built-in)' would raise recall@5 from 0.87 to 0.90 (+0.03).
+eval set: 231 questions (conceptual=126, exact_lookup=92, comparison=3, aggregation=0, table=10) from 128 chunks (2 judged unusable, 0 errors); corpus 802 chunks, fingerprint 3d37a0479db73084, model openai:gpt-5.4-mini
+spend: 240 API calls; 231 cache hits; 0 completion tokens (0 in / 0 out); 175,494 embedding tokens; ≈ $0.0035

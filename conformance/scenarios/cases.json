@@ -1,0 +1,463 @@
+{
+  "meta": {
+    "store_schema": "1.0",
+    "corpus_fingerprint": "96e60162eb19fb6c",
+    "documents": 12,
+    "sections": 46
+  },
+  "cases": [
+    {
+      "op": "index",
+      "args": {},
+      "expect": {
+        "text_sha": "95a8e7173d29b220"
+      }
+    },
+    {
+      "op": "index",
+      "args": {
+        "prefix": "reference/"
+      },
+      "expect": {
+        "text_sha": "8f523b4dd513171f"
+      }
+    },
+    {
+      "op": "search",
+      "args": {
+        "query": "coverage period",
+        "in": [
+          "policies/warranty-2024.md"
+        ]
+      },
+      "expect": {
+        "ids": [
+          "policies/warranty-2024.md#1"
+        ],
+        "mode": "lexical",
+        "empty": false
+      }
+    },
+    {
+      "op": "search",
+      "args": {
+        "query": "coverage period",
+        "in": [
+          "policies/warranty-2025.md"
+        ]
+      },
+      "expect": {
+        "ids": [
+          "policies/warranty-2025.md#1"
+        ],
+        "mode": "lexical",
+        "empty": false
+      }
+    },
+    {
+      "op": "search",
+      "args": {
+        "query": "warranty coverage period months",
+        "limit": 5
+      },
+      "expect": {
+        "ids": [
+          "policies/warranty-2024.md#1",
+          "policies/warranty-2025.md#1",
+          "training/onboarding-notes.txt#1",
+          "policies/warranty-terms-legacy.pdf#0",
+          "policies/warranty-2024.md#4"
+        ],
+        "mode": "lexical",
+        "empty": false
+      }
+    },
+    {
+      "op": "search",
+      "args": {
+        "query": "claim window"
+      },
+      "expect": {
+        "ids": [
+          "policies/warranty-2024.md#2",
+          "policies/warranty-2025.md#2",
+          "training/onboarding-notes.txt#1",
+          "training/warranty-overview.pptx#1",
+          "policies/warranty-2024.md#3",
+          "policies/warranty-2025.md#3",
+          "policies/warranty-terms-legacy.pdf#2",
+          "policies/warranty-terms-legacy.pdf#1",
+          "reference/error-codes-controller.md#1"
+        ],
+        "mode": "lexical",
+        "empty": false
+      }
+    },
+    {
+      "op": "search",
+      "args": {
+        "query": "R-40 operating temp"
+      },
+      "expect": {
+        "ids": [
+          "products/spec-sheet.md#1",
+          "products/faq.md#0",
+          "procedures/maintenance-manual.docx#0"
+        ],
+        "mode": "lexical",
+        "empty": false
+      }
+    },
+    {
+      "op": "search",
+      "args": {
+        "query": "R-120 storage temp"
+      },
+      "expect": {
+        "ids": [
+          "products/spec-sheet.md#1",
+          "products/parts-list.xlsx#0",
+          "products/spec-sheet.md#2",
+          "products/faq.md#2"
+        ],
+        "mode": "lexical",
+        "empty": false
+      }
+    },
+    {
+      "op": "search",
+      "args": {
+        "query": "reseat connector latch pull straight out"
+      },
+      "expect": {
+        "ids": [
+          "procedures/p40-sensor-harness.md#4",
+          "procedures/p40-sensor-harness.md#3",
+          "reference/error-codes-controller.md#1"
+        ],
+        "mode": "lexical",
+        "empty": false
+      }
+    },
+    {
+      "op": "search",
+      "args": {
+        "query": "main bearing bolt torque"
+      },
+      "expect": {
+        "ids": [
+          "procedures/maintenance-manual.docx#1",
+          "training/onboarding-notes.txt#3",
+          "reference/error-codes-controller.md#0",
+          "procedures/p40-sensor-harness.md#0",
+          "procedures/p40-sensor-harness.md#6",
+          "procedures/p40-sensor-harness.md#2"
+        ],
+        "mode": "lexical",
+        "empty": false
+      }
+    },
+    {
+      "op": "search",
+      "args": {
+        "query": "claim serial number fifteen days"
+      },
+      "expect": {
+        "ids": [
+          "training/warranty-overview.pptx#1",
+          "policies/warranty-terms-legacy.pdf#2",
+          "policies/warranty-2024.md#2",
+          "policies/warranty-2025.md#2",
+          "procedures/maintenance-manual.docx#0",
+          "procedures/p40-sensor-harness.md#6",
+          "products/parts-list.xlsx#0",
+          "policies/warranty-2024.md#1",
+          "policies/warranty-2025.md#1",
+          "policies/warranty-2024.md#3"
+        ],
+        "mode": "lexical",
+        "empty": false
+      }
+    },
+    {
+      "op": "search",
+      "args": {
+        "query": "WR-2205"
+      },
+      "expect": {
+        "ids": [
+          "procedures/p40-sensor-harness.md#5",
+          "procedures/maintenance-manual.docx#2",
+          "procedures/p40-sensor-harness.md#0",
+          "training/onboarding-notes.txt#2",
+          "reference/error-codes-controller.md#1"
+        ],
+        "mode": "lexical",
+        "empty": false
+      }
+    },
+    {
+      "op": "search",
+      "args": {
+        "query": "WR-2201 surge event",
+        "limit": 8
+      },
+      "expect": {
+        "ids": [
+          "policies/warranty-2024.md#3",
+          "policies/warranty-2025.md#3",
+          "reference/error-codes-controller.md#1",
+          "procedures/maintenance-manual.docx#2",
+          "products/faq.md#1",
+          "policies/warranty-terms-legacy.pdf#1",
+          "training/onboarding-notes.txt#2",
+          "reference/error-codes-drive.md#3"
+        ],
+        "mode": "lexical",
+        "empty": false
+      }
+    },
+    {
+      "op": "search",
+      "args": {
+        "query": "ATEX zone 2"
+      },
+      "expect": {
+        "ids": [
+          "products/spec-sheet.md#2",
+          "products/faq.md#2",
+          "training/warranty-overview.pptx#1",
+          "procedures/p40-sensor-harness.md#3"
+        ],
+        "mode": "lexical",
+        "empty": false
+      }
+    },
+    {
+      "op": "search",
+      "args": {
+        "query": "RCTL_WATCHDOG_MS default"
+      },
+      "expect": {
+        "ids": [
+          "reference/error-codes-controller.md#3"
+        ],
+        "mode": "lexical",
+        "empty": false
+      }
+    },
+    {
+      "op": "search",
+      "args": {
+        "query": "brake pad heavy duty price",
+        "in": [
+          "products"
+        ]
+      },
+      "expect": {
+        "ids": [
+          "products/parts-list.xlsx#0",
+          "products/faq.md#3"
+        ],
+        "mode": "lexical",
+        "empty": false
+      }
+    },
+    {
+      "op": "read",
+      "args": {
+        "id": "policies/warranty-2025.md#2",
+        "context": 1
+      },
+      "expect": {
+        "id": "policies/warranty-2025.md#2",
+        "text_sha": "ee3449f01cc41b94",
+        "heading_path": "Warranty Policy 2025 > Claim window",
+        "context_ids": [
+          "policies/warranty-2025.md#1",
+          "policies/warranty-2025.md#3"
+        ],
+        "prev": "policies/warranty-2025.md#1",
+        "next": "policies/warranty-2025.md#3"
+      }
+    },
+    {
+      "op": "read",
+      "args": {
+        "id": "products/spec-sheet.md#1"
+      },
+      "expect": {
+        "id": "products/spec-sheet.md#1",
+        "text_sha": "4a5b0d8792a9b1e0",
+        "heading_path": "R-series specification sheet > Environmental limits",
+        "context_ids": [],
+        "prev": "products/spec-sheet.md#0",
+        "next": "products/spec-sheet.md#2"
+      }
+    },
+    {
+      "op": "read",
+      "args": {
+        "id": "procedures/p40-sensor-harness.md#4"
+      },
+      "expect": {
+        "id": "procedures/p40-sensor-harness.md#4",
+        "text_sha": "ff589cb43e7956c7",
+        "heading_path": "P-40: Reseating the sensor harness > Step 3: reseat",
+        "context_ids": [],
+        "prev": "procedures/p40-sensor-harness.md#3",
+        "next": "procedures/p40-sensor-harness.md#5"
+      }
+    },
+    {
+      "op": "read",
+      "args": {
+        "id": "products/parts-list.xlsx#0"
+      },
+      "expect": {
+        "id": "products/parts-list.xlsx#0",
+        "text_sha": "c065d2e829fc66c1",
+        "heading_path": "parts-list > Parts",
+        "context_ids": [],
+        "prev": null,
+        "next": null
+      }
+    },
+    {
+      "op": "grep",
+      "args": {
+        "pattern": "WR-",
+        "limit": 100
+      },
+      "expect": {
+        "ids": [
+          "policies/warranty-2024.md#3",
+          "policies/warranty-2025.md#3",
+          "policies/warranty-terms-legacy.pdf#1",
+          "procedures/maintenance-manual.docx#2",
+          "procedures/p40-sensor-harness.md#0",
+          "procedures/p40-sensor-harness.md#5",
+          "products/faq.md#1",
+          "reference/error-codes-controller.md#1",
+          "reference/error-codes-controller.md#2",
+          "reference/error-codes-drive.md#0",
+          "reference/error-codes-drive.md#1",
+          "reference/error-codes-drive.md#2",
+          "reference/error-codes-drive.md#3",
+          "training/onboarding-notes.txt#2"
+        ],
+        "lines_sha": [
+          "34a5a125f78301ae",
+          "a32a45242d1ebd7b",
+          "38d2181e8a5fcebe",
+          "35e5875d78923209",
+          "237d8bf1077de275",
+          "60273d3a9e18f43f",
+          "47d437d920b4ccb9",
+          "4f78f6ab4913fec9",
+          "4c9a0847abc27389",
+          "64cd7224bdc1ea00",
+          "161045b5113cf41b",
+          "ef1d1dc1c769d1c4",
+          "2f8dc297820cbee7",
+          "49b37952e57f1cc5"
+        ],
+        "truncated": false
+      }
+    },
+    {
+      "op": "grep",
+      "args": {
+        "pattern": "WR-22",
+        "in": [
+          "reference/error-codes-controller.md"
+        ]
+      },
+      "expect": {
+        "ids": [
+          "reference/error-codes-controller.md#1"
+        ],
+        "lines_sha": [
+          "4f78f6ab4913fec9"
+        ],
+        "truncated": false
+      }
+    },
+    {
+      "op": "grep",
+      "args": {
+        "pattern": "WR-320"
+      },
+      "expect": {
+        "ids": [
+          "reference/error-codes-drive.md#2"
+        ],
+        "lines_sha": [
+          "b9a7c919f5dc53ab"
+        ],
+        "truncated": false
+      }
+    },
+    {
+      "op": "grep",
+      "args": {
+        "pattern": "PN-88121"
+      },
+      "expect": {
+        "ids": [
+          "products/parts-list.xlsx#0"
+        ],
+        "lines_sha": [
+          "f535b15223b8b391"
+        ],
+        "truncated": false
+      }
+    },
+    {
+      "op": "grep",
+      "args": {
+        "pattern": "ALLOW_DOWNGRADE"
+      },
+      "expect": {
+        "ids": [
+          "reference/error-codes-controller.md#2"
+        ],
+        "lines_sha": [
+          "01819de20bd43fb6"
+        ],
+        "truncated": false
+      }
+    },
+    {
+      "op": "neighbours",
+      "args": {
+        "id": "procedures/p40-sensor-harness.md#4",
+        "before": 0,
+        "after": 1
+      },
+      "expect": {
+        "ids": [
+          "procedures/p40-sensor-harness.md#4",
+          "procedures/p40-sensor-harness.md#5"
+        ],
+        "header": null
+      }
+    },
+    {
+      "op": "neighbours",
+      "args": {
+        "id": "products/spec-sheet.md#1",
+        "before": 1,
+        "after": 1
+      },
+      "expect": {
+        "ids": [
+          "products/spec-sheet.md#0",
+          "products/spec-sheet.md#1",
+          "products/spec-sheet.md#2"
+        ],
+        "header": null
+      }
+    }
+  ]
+}

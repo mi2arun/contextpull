@@ -23,3 +23,11 @@ class ContextPullSearch:
 
     def retrieve(self, query: str, k: int) -> list[str]:
         return [h.id for h in self.ops.search(query, limit=k).hits]
+
+
+class ContextPullHybrid(ContextPullSearch):
+    """search(mode="hybrid"): lexical fused with stored embeddings by reciprocal rank.
+    The store must have been ingested with --embed-model; the query is embedded at query time."""
+
+    def retrieve(self, query: str, k: int) -> list[str]:
+        return [h.id for h in self.ops.search(query, limit=k, mode="hybrid").hits]

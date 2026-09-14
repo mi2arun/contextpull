@@ -1,0 +1,15 @@
+Field Engineer Onboarding
+
+Welcome to the field team. This note collects the things new engineers ask most.
+
+Warranty Basics
+
+The 2025 policy raised the coverage period to 36 months and shortened the claim window. Always check the shipping date to know which policy applies.
+
+Common Codes
+
+WR-2201 is a surge; WR-2205 is a sensor bus fault fixed by P-40; WR-3101 is a motor overcurrent, and if it appears right after WR-2201 treat it as the same incident.
+
+Tools
+
+You need a torque driver, an ESD strap and a magnetic tray. Torque for M5 cover screws is 3 Nm.

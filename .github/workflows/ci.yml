@@ -16,14 +16,14 @@ jobs:
       - run: uv sync --all-extras
       - run: uv run --all-extras python -c "import sys, contextpull.server; print('server import ok on', sys.version.split()[0])"
       - run: uv run --all-extras pytest -q -rs
-      - run: uv run --all-extras python conformance/run.py check
+      - run: uv run --all-extras python conformance/run.py check all
   node:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
-      - run: cd sdk/typescript && npm ci && npm run build && npm run conformance
+      - run: cd sdk/typescript && npm ci && npm run build && npm run conformance && node dist/conformance.js ../../conformance/scenarios/store.sqlite ../../conformance/scenarios/cases.json
   go:
     runs-on: ubuntu-latest
     steps:
@@ -31,4 +31,4 @@ jobs:
       - uses: actions/setup-go@v5
         with: { go-version: "1.23", cache-dependency-path: sdk/go/go.sum }
       - run: cmp tools.json sdk/go/tools.json   # the embedded tool contract must match the repo root
-      - run: cd sdk/go && go vet ./... && go build ./... && go run ./cmd/contextpull-conformance ../../conformance/store.sqlite ../../conformance/cases.json
+      - run: cd sdk/go && go vet ./... && go build ./... && go run ./cmd/contextpull-conformance ../../conformance/store.sqlite ../../conformance/cases.json && go run ./cmd/contextpull-conformance ../../conformance/scenarios/store.sqlite ../../conformance/scenarios/cases.json

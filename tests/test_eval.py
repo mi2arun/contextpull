@@ -153,3 +153,42 @@ def test_claude_code_adapter_refuses_interpreter_without_mcp(fixture_store, tmp_
 
     with _pytest.raises(RuntimeError, match="cannot run the ContextPull MCP server"):
         ClaudeCodeRetriever(str(fixture_store), cache_path=str(tmp_path / "c.sqlite"), server_python="/usr/bin/false")
+
+
+def test_api_loop_tools_work_from_worker_threads(fixture_store, tmp_path, monkeypatch):
+    """ragbisect calls retrieve() from a thread pool; the store connection must survive that,
+    and infrastructure failures inside tools must surface as record errors, never as data."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    monkeypatch.setenv("OPENAI_API_KEY", "x")
+
+    def fake_post(self, url, headers, body):
+        last = body["messages"][-1]
+        if last["role"] == "tool":
+            assert "hits" in last["content"], f"tool returned an error: {last['content'][:120]}"
+            return {"choices": [{"message": {"role": "assistant", "content": "done"}}], "usage": {"prompt_tokens": 1, "completion_tokens": 1}}
+        return {"choices": [{"message": {"role": "assistant", "content": None, "tool_calls": [
+            {"id": "c", "type": "function", "function": {"name": "search", "arguments": json.dumps({"query": "refund window"})}}]}}],
+                "usage": {"prompt_tokens": 1, "completion_tokens": 1}}
+
+    monkeypatch.setattr(ApiLoopRetriever, "_post", fake_post)
+    r = ApiLoopRetriever(str(fixture_store), model="openai:gpt-test", cache_path=str(tmp_path / "c.sqlite"), count_surfaced=True)
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        results = list(pool.map(lambda q: r.retrieve(q, 5), [f"question {i}" for i in range(12)]))
+    assert all(res and res[0].startswith("policies/") for res in results)
+    assert r.stats()["tool_errors"] == 0 and r.stats()["errors"] == 0
+
+
+def test_api_loop_marks_run_failed_when_every_tool_call_fails(fixture_store, tmp_path, monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "x")
+    scripted = iter([
+        {"role": "assistant", "content": None, "tool_calls": [{"id": "c", "type": "function", "function": {"name": "search", "arguments": json.dumps({"query": "x"})}}]},
+        {"role": "assistant", "content": "guessing"},
+    ])
+    monkeypatch.setattr(ApiLoopRetriever, "_post", lambda self, u, h, b: {"choices": [{"message": next(scripted)}], "usage": {}})
+    r = ApiLoopRetriever(str(fixture_store), model="openai:gpt-test", cache_path=str(tmp_path / "c.sqlite"))
+    r.store.close()  # simulate broken infrastructure: every tool call now raises
+    assert r.retrieve("q", 5) == []
+    rec = r.records["q"]
+    assert rec.tool_errors == 1 and rec.error and rec.error.startswith("every tool call failed")
+    assert r.cache.get(r.cache.key("api_loop", 3, "openai", "gpt-test", 8, r.fingerprint, "q", False)) is None  # not cached

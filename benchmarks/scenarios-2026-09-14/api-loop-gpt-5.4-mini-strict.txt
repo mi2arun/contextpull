@@ -1,0 +1,11 @@
+--- live scenarios: API loop, strict prompt, gpt-5.4-mini ---
+scenario                               reads ok  answer ok  calls  reads  detail
+comparison across versions             True      True       6      4      
+aggregation across files               True      True       8      4      
+table cell                             True      True       3      1      
+procedure next step                    True      True       2      1      
+cross-format lookup in a spreadsheet   True      True       2      1      
+multi-hop across reference and policy  True      True       5      3      
+
+6/6 scenarios passed | 26 tool calls, 37,196 in / 1,569 out tokens | model openai:gpt-5.4-mini
+

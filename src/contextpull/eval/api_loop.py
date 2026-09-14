@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import threading
 import time
 import urllib.error
@@ -17,7 +18,7 @@ import urllib.request
 from dataclasses import dataclass, field
 
 from ..llm import parse_model
-from ..ops import Ops
+from ..ops import Ops, OpsError
 from ..index import PREAMBLE
 from ..store import Store
 from ..tools import TOOLS, call, openai_tools
@@ -46,6 +47,8 @@ class LoopRecord:
     ms: float = 0.0
     answer: str = ""
     error: str | None = None
+    tool_errors: int = 0
+    first_tool_error: str | None = None
 
 
 class ApiLoopRetriever:
@@ -67,7 +70,8 @@ class ApiLoopRetriever:
         chose to read."""
         self.strict = strict
         self.count_surfaced = count_surfaced
-        self.store = Store.open(store_path or os.environ.get("CONTEXTPULL_STORE", ".contextpull/store.sqlite"))
+        # ragbisect calls retrieve() from worker threads; one connection, serialised by _sql_lock.
+        self.store = Store.open(store_path or os.environ.get("CONTEXTPULL_STORE", ".contextpull/store.sqlite"), check_same_thread=False)
         self.ops = Ops(self.store)
         self.provider, self.model = parse_model(model)
         self.max_turns = max_turns
@@ -100,6 +104,7 @@ class ApiLoopRetriever:
             "tool_calls": sum(sum(r.tool_calls.values()) for r in recs),
             "turns": sum(r.turns for r in recs),
             "errors": sum(1 for r in recs if r.error),
+            "tool_errors": sum(r.tool_errors for r in recs),
             "by_tool": _sum_dicts(r.tool_calls for r in recs),
             "reads_per_query": (sum(len(r.read_ids) for r in recs) / len(recs)) if recs else 0,
             "answered_without_reading": sum(1 for r in recs if not r.read_ids and not r.error),
@@ -117,7 +122,8 @@ class ApiLoopRetriever:
         with self._lock:
             if query in self.records:
                 return self.records[query]
-        key = self.cache.key("api_loop", self.provider, self.model, self.max_turns, self.fingerprint, query, self.strict)
+        # Key schema version 2: records now carry surfaced_ids. Bump when the record shape changes.
+        key = self.cache.key("api_loop", 3, self.provider, self.model, self.max_turns, self.fingerprint, query, self.strict)
         cached = self.cache.get(key)
         if cached:
             rec = LoopRecord(**cached)
@@ -133,12 +139,23 @@ class ApiLoopRetriever:
         with self._sql_lock:
             try:
                 out = call(self.ops, name, args)
+            except OpsError as e:
+                out = e.to_dict()  # a legitimate tool error the model should see (unknown id, bad regex)
             except Exception as e:
+                # An infrastructure failure, not a model mistake. Count it: a run whose tools all
+                # fail measures nothing, and must never be cached as a data point.
                 out = {"error": f"{type(e).__name__}: {e}"}
+                if rec is not None:
+                    rec.tool_errors += 1
+                    if rec.first_tool_error is None:
+                        rec.first_tool_error = f"{name}: {type(e).__name__}: {str(e)[:200]}"
         if rec is not None and isinstance(out, dict):
             for item in out.get("hits", []) + out.get("matches", []):
                 if item.get("id"):
                     rec.surfaced_ids.append(item["id"])
+        if os.environ.get("CONTEXTPULL_EVAL_DEBUG"):
+            n = len(out.get("hits", []) + out.get("matches", [])) if isinstance(out, dict) else -1
+            print(f"[eval] {name} {json.dumps(args)[:80]} -> {n} ids; rec={'none' if rec is None else id(rec)} surfaced={len(rec.surfaced_ids) if rec else '-'}", file=sys.stderr, flush=True)
         return out if isinstance(out, str) else json.dumps(out, ensure_ascii=False)
 
     def _suffix(self) -> str:
@@ -156,6 +173,9 @@ class ApiLoopRetriever:
                 raise ValueError(f"unknown provider {self.provider!r}")
         except Exception as e:
             rec.error = f"{type(e).__name__}: {str(e)[:300]}"
+        calls = sum(rec.tool_calls.values())
+        if not rec.error and calls and rec.tool_errors == calls:
+            rec.error = f"every tool call failed; first: {rec.first_tool_error}"
         rec.ms = (time.perf_counter() - t0) * 1000
         return rec
 

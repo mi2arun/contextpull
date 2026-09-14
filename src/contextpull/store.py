@@ -105,14 +105,16 @@ class Store:
         return store
 
     @classmethod
-    def open(cls, path: str | Path, readonly: bool = True) -> "Store":
+    def open(cls, path: str | Path, readonly: bool = True, check_same_thread: bool = True) -> "Store":
+        """``check_same_thread=False`` lets one connection be used from several threads;
+        the caller must then serialise access (the eval adapters hold a lock)."""
         p = Path(path)
         if not p.exists():
             raise StoreError(f"no store at {p}; run `contextpull ingest <corpus>` first")
         if readonly:
-            conn = sqlite3.connect(f"file:{p}?mode=ro", uri=True)
+            conn = sqlite3.connect(f"file:{p}?mode=ro", uri=True, check_same_thread=check_same_thread)
         else:
-            conn = sqlite3.connect(str(p))
+            conn = sqlite3.connect(str(p), check_same_thread=check_same_thread)
             conn.execute("PRAGMA foreign_keys=ON")
         store = cls(conn, p, readonly)
         try:
