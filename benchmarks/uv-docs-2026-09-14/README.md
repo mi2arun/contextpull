@@ -14,6 +14,5 @@ Corpus: `astral-sh/uv` `docs/` (81 Markdown files), ingested by ContextPull into
 | `table-apiloop-surfaced-sample60.txt` | ids the model saw in search/grep results plus ids read, same sample: 0.883 |
 
 Reproduce: `contextpull ingest <uv docs> --summarizer openai:gpt-5.4-mini`, `contextpull export-chunks > chunks.jsonl`, then the commands in `examples/ragbisect_agentic.py`. | `table-apiloop-strict-sample60.txt` | pull, ids read, strict prompt, 60-question seeded sample: 0.617, no different from the default prompt |
-| `table-apiloop-surfaced-sample60.txt` | pull, ids the model saw in search/grep results plus ids read, same sample: 0.883 |
 
 Reading of the result is in `docs/testing.md`, section "M3: measurement".
