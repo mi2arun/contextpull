@@ -1,5 +1,7 @@
 # ContextPull
 
+**Website:** https://mi2arun.github.io/contextpull/ · [demo](https://mi2arun.github.io/contextpull/demo.html) · [docs](https://mi2arun.github.io/contextpull/docs/index.html)
+
 Pull, don't push. ContextPull turns a folder of documents into something an LLM agent can pull from the way Claude Code pulls from a codebase: a small index that is always in context, and five tools that return exact sections on demand. The model never receives content it did not ask for.
 
 Zero runtime dependencies. One SQLite file. Works offline.
