@@ -177,7 +177,7 @@ Every result carries `id`, `heading_path` and `doc` so the model can cite withou
 **Attaching to Claude Code.**
 
 ```sh
-claude mcp add contextpull -- uvx contextpull serve ./docs          # once published
+claude mcp add contextpull -- uvx --from "contextpull[mcp]" contextpull serve ./docs   # from PyPI; the mcp extra is needed for serve
 claude mcp add contextpull -- uv run --project /path/to/contextpull contextpull serve ./docs   # from a checkout
 ```
 

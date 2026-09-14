@@ -28,7 +28,7 @@ The pull pattern is only as good as the model's willingness to read: a strong ag
 Fastest: `./scripts/demo.sh` ingests the bundled fixture corpus and walks through index, search, read and grep, then prints the exact `claude mcp add` line. `./scripts/demo.sh ./your-docs` does the same on your own folder.
 
 ```sh
-uv tool install contextpull            # or: pip install contextpull  (not yet published; use `uv run` from this repo)
+uv tool install contextpull            # or: pip install contextpull   (PyPI: contextpull 0.1.0)
 contextpull ingest ./docs              # writes .contextpull/store.sqlite
 contextpull index                      # the always-in-context table of contents
 contextpull search "refund window" --in policy-2025.md
@@ -41,8 +41,7 @@ contextpull export-chunks > chunks.jsonl   # ragbisect-compatible sections
 ## In Claude Code
 
 ```sh
-uv sync --extra mcp                                   # from this checkout, until it is on PyPI
-claude mcp add contextpull -- uv run --project $(pwd) contextpull serve ./docs
+claude mcp add contextpull -- uvx --from "contextpull[mcp]" contextpull serve ./docs
 ```
 
 The server ingests `./docs` into `./docs/.contextpull/store.sqlite`, puts the index into its instructions so it is always in context, and exposes the five tools. Ask a question; the trace shows `search`, then `read`, then an answer with `[path.md#3]` citations. `contextpull claude-md` prints a CLAUDE.md snippet if you want to tell the model about it explicitly. Add `--summarizer openai:gpt-5.4-mini` for model-written one-line summaries in the index (cached by document hash).
@@ -86,7 +85,7 @@ Tool definitions for any model API are in `contextpull.tools.TOOLS` (Anthropic s
 
 ```sh
 cd sdk/typescript && npm install && npm run build
-node bin/contextpull.mjs serve /path/store.sqlite          # or, once published: npx contextpull serve …
+node bin/contextpull.mjs serve /path/store.sqlite          # npm publish pending; see below
 claude mcp add contextpull -- node /path/to/sdk/typescript/bin/contextpull.mjs serve /path/store.sqlite
 ```
 
