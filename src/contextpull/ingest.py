@@ -20,6 +20,7 @@ from typing import Callable, Iterable
 from .index import build_index
 from .ops import normalize_for_fts
 from .parse import parse, parse_pdf, pdf_available
+from .parse_office import OFFICE_KINDS, parse_office
 from .section import SectionRow, sectionize
 from .store import Store
 
@@ -148,7 +149,9 @@ def ingest(
         known = {r["path"]: r["sha256"] for r in store.conn.execute("SELECT path, sha256 FROM documents")}
         offline_docs = {r["path"] for r in store.conn.execute("SELECT path FROM documents WHERE summary_src = 'offline'")}
         seen_paths: set[str] = set()
-        extra = {".pdf": "pdf"} if pdf_available() else {}
+        extra = dict(OFFICE_KINDS)
+        if pdf_available():
+            extra[".pdf"] = "pdf"
         if not extra and any(p.suffix.lower() == ".pdf" for p in root.rglob("*.pdf")):
             report.skipped.append(("*.pdf", 'PDF files present but the "pdf" extra is not installed: pip install "contextpull[pdf]"'))
         for rel, path, kind in discover(root, extra):
@@ -168,6 +171,8 @@ def ingest(
             try:
                 if kind == "pdf":
                     parsed = parse_pdf(raw, fallback_title=path.stem)
+                elif kind in OFFICE_KINDS.values():
+                    parsed = parse_office(raw, kind, fallback_title=path.stem)
                 else:
                     parsed = parse(raw.decode("utf-8", errors="replace"), kind, fallback_title=path.stem)
                 sections = sectionize(parsed, max_chars=max_chars, min_chars=min_chars, heading_depth=heading_depth)

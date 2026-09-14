@@ -49,6 +49,7 @@ Nine MCP tests pass over in-memory streams and a real stdio subprocess, includin
 ## M4 — Breadth and publication · in progress, 2026-09-14
 
 - PDF ingest through the `pdf` extra; table detection in PDFs where the extractor exposes it. **Built** (headings from font size; no table detection or page numbers yet).
+- Office files (docx, xlsx, pptx) with the standard library. **Built** 2026-09-14, prompted by an integrator's air-gapped document-intelligence PoC; with an [embedding guide](embedding.md) and an access-control example.
 - Hierarchical index for corpora past the budget; `index(prefix)` drill-down. **Built in M1/M2** (flat, compact, hierarchical, budget always honoured).
 - Optional embeddings and `search(mode="hybrid")`. **Built**, tested with a fake embedder; a real-provider run is pending on API credits.
 - Streamable HTTP transport for the shared, read-only deployment. **Built** (`serve --transport http`), tested end to end with the SDK client.

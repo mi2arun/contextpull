@@ -74,6 +74,7 @@ DOC_PAGES = [
     ("tool-reference", "tool-reference.md", "Tool reference"),
     ("evaluation", "evaluation.md", "Evaluation"),
     ("testing", "testing.md", "Testing"),
+    ("embedding", "embedding.md", "Embedding in your product"),
     ("roadmap", "roadmap.md", "Roadmap"),
     ("sdk-plan", "sdk-plan.md", "Multi-language SDK plan"),
     ("store-format", "store-format.md", "Store format contract"),

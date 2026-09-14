@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Embedding in your product · ContextPull docs</title><meta name="description" content="Pull, don’t push: exact document sections on demand for LLM agents. MCP server, zero-dependency Python core, Node reader.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap"><link rel="stylesheet" href="../site.css"><script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs"; mermaid.initialize({startOnLoad:true, theme: matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "neutral"});</script>
+</head><body>
+<div class="nav"><div class="wrap"><a class="brand" href="../index.html">ContextPull <small style="color:var(--muted);font-weight:500;font-size:13px"> · pull, don’t push</small></a><div class="nav-links"><a href="../index.html">ContextPull</a><a href="../demo.html">Demo</a><a href="../docs/index.html" class="active">Docs</a><a href="../ragbisect.html">ragbisect</a><a href="https://github.com/mi2arun/contextpull">GitHub</a></div></div></div>
+<div class="wrap docs"><nav><div class="grp">documents</div><a href="index.html">Overview</a><a href="architecture.html">Architecture</a><a href="design.html">Design document</a><a href="system-design.html">System design</a><a href="tool-reference.html">Tool reference</a><a href="evaluation.html">Evaluation</a><a href="testing.html">Testing</a><a href="embedding.html" class="active">Embedding in your product</a><a href="roadmap.html">Roadmap</a><a href="sdk-plan.html">Multi-language SDK plan</a><a href="store-format.html">Store format contract</a><a href="adr.html">Decision records</a></nav><article class="doc"><div class="eyebrow">document</div><h1>Embedding in your product</h1><p>ContextPull is MIT licensed and designed to be embedded: the core has no dependencies, the store is one file, and the five operations are plain functions. This page is for teams building their own client rather than attaching an MCP host.</p>
+<h2 id="the-shape">The shape</h2>
+<pre class="mermaid">flowchart LR
+  subgraph yours[&quot;your product&quot;]
+    UP[&quot;upload / converters&lt;br/&gt;(Office, PDF, CAD metadata, image captions → Markdown)&quot;]
+    ACL[&quot;permission model&quot;]
+    UI[&quot;UI / API&quot;]
+    LOOP[&quot;model loop&lt;br/&gt;(local or hosted)&quot;]
+  end
+  UP --&gt;|contextpull ingest| STORE[(&quot;store.sqlite&quot;)]
+  STORE --&gt; OPS[&quot;contextpull.Ops&quot;]
+  ACL --&gt;|allowed paths| OPS
+  OPS --&gt; LOOP --&gt; UI
+</pre>
+<p>You own ingestion triggers, converters for formats ContextPull does not read, the permission model, the model loop and the interface. ContextPull owns sectioning, indexing, identifier-safe search, section addressing and citations.</p>
+<h2 id="ingest">Ingest</h2>
+<p>Build the store wherever it is convenient, in CI or on the target machine, and ship the file. Supported inputs: Markdown, plain text, docx, xlsx, pptx (standard library only), PDF with the <code>pdf</code> extra. Anything else, convert to Markdown first and drop it in the corpus folder. Keep converter output deterministic so re-ingest stays incremental.</p>
+<pre><code class="language-sh">pip install contextpull            # add [pdf] for PDFs
+contextpull ingest /data/corpus --store /data/store.sqlite
+contextpull ingest /data/corpus --store /data/store.sqlite --summarizer openai:gpt-5.4-mini   # any OpenAI-compatible endpoint via OPENAI_BASE_URL, including local servers
+</code></pre>
+<p>Air-gapped deployments: nothing in the core calls a network. Summaries and embeddings are optional and point at whatever OpenAI-compatible endpoint you run locally.</p>
+<h2 id="query">Query</h2>
+<pre><code class="language-python">from contextpull import Store, Ops
+
+with Store.open(&quot;/data/store.sqlite&quot;) as store:   # read-only
+    ops = Ops(store)
+    index_text = ops.index()                       # put this in your system prompt
+    hits = ops.search(&quot;refund window&quot;, in_=[&quot;policies/*&quot;], limit=10)
+    section = ops.read(hits.hits[0].id, context=1)
+</code></pre>
+<p>For a model loop, <code>contextpull.tools.TOOLS</code> are the tool definitions in Anthropic shape and <code>openai_tools()</code> converts them; <code>contextpull.tools.call(ops, name, args)</code> dispatches. <code>examples/direct_api_loop.py</code> is a complete loop in under a hundred lines.</p>
+<h2 id="access-control">Access control</h2>
+<p>The store has no notion of users, on purpose. Two patterns:</p>
+<ol>
+<li><strong>One store per permission group.</strong> Simplest. Ingest each group's documents into its own file and open the right one per request. No code.</li>
+<li><strong>A filter in your client.</strong> Decide which document paths a user may see and pass them as <code>in=</code> to <code>search</code> and <code>grep</code>; check <code>read</code> and <code>neighbours</code> ids against the same rule; filter the index text to permitted documents so the model cannot learn what else exists. <code>examples/embed_with_acl.py</code> is a working wrapper that does all of this in fifty lines.</li>
+</ol>
+<p>Refuse unauthorised <code>read</code> with the same error the store gives for a missing id, so a denied section is indistinguishable from an absent one.</p>
+<h2 id="concurrency-and-updates">Concurrency and updates</h2>
+<p>Open the store read-only in your request handlers; SQLite in WAL mode serves concurrent readers. Re-ingest writes in one transaction per document; readers keep the previous snapshot until it commits and pick up the new index on their next <code>index()</code> call. One connection per thread.</p>
+<h2 id="measure-before-you-ship">Measure before you ship</h2>
+<p>The pull pattern depends on the model reading sections rather than answering from snippets. Our benchmark saw a small model with reasoning off read one section in twenty. Before committing a product to it, run <a href="https://github.com/mi2arun/ragbisect">ragbisect</a> against your corpus and your model through <code>examples/ragbisect_agentic.py</code>; it takes an afternoon and tells you the recall, the cost per question and whether the model actually reads.</p>
+<h2 id="versioning">Versioning</h2>
+<p>Pin <code>contextpull</code> to a minor version. The store format carries its own version (<code>schema_version</code> in <code>meta</code>); a reader refuses a store whose major it does not support. Rebuilding the store from the corpus is always safe.</p></article></div>
+<footer><div class="wrap"><span>MIT · © 2026 Arunkumar S</span><a href="https://github.com/mi2arun/contextpull">github.com/mi2arun/contextpull</a><a href="https://pypi.org/project/contextpull/">PyPI</a><a href="https://www.npmjs.com/package/contextpull">npm</a><a href="https://github.com/mi2arun/ragbisect">ragbisect</a></div></footer>
+</body></html>

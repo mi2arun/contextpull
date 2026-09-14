@@ -115,8 +115,11 @@ Cost per question is the other half of the table. Push retrieval costs milliseco
 - Hybrid: with a deterministic fake embedder, every section gets a vector, re-ingest embeds nothing new, a deleted document loses its vectors, the fused ranking keeps the lexical leaders on top, the path filter applies to the dense side, and a store without vectors falls back to lexical with a hint.
 - Streamable HTTP: the server starts on a free port as a subprocess and the SDK's HTTP client initializes, sees the index in instructions, and runs a tool call.
 
+- Office: docx, xlsx and pptx fixtures are generated in-test as minimal OOXML zips (`tests/test_office.py`); headings, lists, tables, shared strings and slide titles parse as specified, a corrupt file is skipped with a reason, and grep and search find identifiers and table cells inside them.
+
 ## Not yet tested
 
+- Real-world Office files with tracked changes, merged cells, nested tables or formulas without cached values.
 - Hybrid search with a real embedding provider (pending API credits; plumbing tested with a fake embedder).
 - PDFs with tables, scanned PDFs, PDFs whose body and heading sizes are close.
 - Windows paths and case-insensitive filesystems.

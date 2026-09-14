@@ -15,6 +15,7 @@ This set is the source of truth for what we are building. Read in order the firs
 | [Multi-language SDK plan](sdk-plan.md) | How TypeScript, Go, Java and others get ContextPull without forking the logic |
 | [Store format contract](store-format.md) | The rules a reader in any language must follow |
 | [Testing](testing.md) | Test layers, scale and quality results, bugs the campaign found |
+| [Embedding ContextPull](embedding.md) | Using the library inside your own product: ingest, query, access control, air-gap, versioning |
 | [Decision records](adr/) | One page per irreversible-ish decision |
 
 ## One-paragraph summary

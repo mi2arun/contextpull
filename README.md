@@ -60,6 +60,8 @@ uv run contextpull serve ./docs --transport http --port 8765    # streamable HTT
 
 ## As a library
 
+Embedding it in your own product, with access control and air-gap notes: [docs/embedding.md](docs/embedding.md) and `examples/embed_with_acl.py`.
+
 ```python
 from contextpull import Store, Ops
 
@@ -76,7 +78,7 @@ Tool definitions for any model API are in `contextpull.tools.TOOLS` (Anthropic s
 
 ## How it works
 
-1. **Ingest** parses Markdown and text into headings, paragraphs, tables and code, and cuts heading-aware sections with stable ids like `policy-2025.md#3`. Tables and code are never split mid-block; long tables are split by rows and every part carries the header. Unchanged files are skipped on re-ingest.
+1. **Ingest** parses Markdown, text, docx, xlsx, pptx and (with the `pdf` extra) PDF into headings, paragraphs, tables and code, and cuts heading-aware sections with stable ids like `policy-2025.md#3`. Tables and code are never split mid-block; long tables are split by rows and every part carries the header. Unchanged files are skipped on re-ingest.
 2. **Store** is one SQLite file with an FTS5 index whose tokenizer keeps identifiers whole (`--no-cache`, `UV_CACHE_DIR`, `TX-4419`, `3.12`).
 3. **Index** is a token-budgeted table of contents, one line per document, delivered into the model's context. It goes hierarchical when a corpus is too large for the budget.
 4. **Tools**: `index`, `search` (ids and snippets, never bodies), `read` (verbatim), `grep` (exact matches), `neighbours` (the header row, the next clause).

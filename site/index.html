@@ -37,7 +37,7 @@ ops.search("refund window", in_=["policy-2025.md"])</code></pre></div>
 <section id="how"><div class="wrap">
   <div class="sec-head"><div class="eyebrow">how it works</div><h2>Index in context. Pointers on request. Text only when asked.</h2></div>
   <div class="steps">
-    <div class="step"><h3>Ingest once into one SQLite file</h3><p>Markdown, text and PDF become heading-aware sections with stable ids like <code>policy-2025.md#3</code>. Tables and code are never split mid-block. Unchanged files are skipped on re-ingest. Zero dependencies.</p></div>
+    <div class="step"><h3>Ingest once into one SQLite file</h3><p>Markdown, text, Word, Excel, PowerPoint and PDF become heading-aware sections with stable ids like <code>policy-2025.md#3</code>. Tables and code are never split mid-block. Unchanged files are skipped on re-ingest. Zero dependencies.</p></div>
     <div class="step"><h3>The index rides along</h3><p>A token-budgeted table of contents, one line per document, is delivered in the MCP server’s instructions so the model knows what exists before it does anything. Also a tool and a resource.</p></div>
     <div class="step"><h3>The model pulls</h3><p><code>search</code> returns ids and snippets, never bodies. <code>read</code> returns one section verbatim. <code>grep</code> finds exact codes and flags. <code>neighbours</code> recovers a table header or the next clause. The answer cites ids.</p></div>
   </div>
@@ -74,7 +74,7 @@ ops.search("refund window", in_=["policy-2025.md"])</code></pre></div>
   <div class="sec-head"><div class="eyebrow">works with what you have</div><h2>One store file, three ways in.</h2></div>
   <div class="two">
     <div class="card"><h3>Open MCP hosts</h3><p>Claude Code, Claude Desktop, Cursor and others attach the server over stdio; a shared read-only server speaks streamable HTTP. The Python server needs the <code>mcp</code> extra; the Node server needs nothing but Node.</p></div>
-    <div class="card"><h3>Your own client</h3><p>Import the Python library, or use <code>tools.json</code> with the Anthropic or OpenAI API directly. The direct-API example answers a comparison question with two reads and two citations in under a hundred lines.</p></div>
+    <div class="card"><h3>Your own client</h3><p>Import the Python library, or use <code>tools.json</code> with the Anthropic or OpenAI API directly. MIT licensed, no network calls in the core, so it embeds in air-gapped products. The <a href="docs/embedding.html">embedding guide</a> covers ingest, access control and versioning.</p></div>
     <div class="card"><h3>Other languages</h3><p>The SQLite store is the contract. A conformance suite defines correctness; the TypeScript reader passes it and returns byte-identical results to Python over MCP. Go is next.</p></div>
     <div class="card"><h3>Honest measurement</h3><p><a href="ragbisect.html">ragbisect</a>, the companion harness, builds an eval set from your corpus in five question shapes and scores each retrieval stage on its own. ContextPull is just another row.</p></div>
   </div>

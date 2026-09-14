@@ -83,13 +83,14 @@ Rejected: content-hash IDs (unreadable in citations, change on any edit), UUIDs 
 discover → hash → parse → section → classify → write → fts → summarize → index
 ```
 
-**Discover.** Walk the corpus root. Include `.md .markdown .txt`, and `.pdf` when the `pdf` extra is installed. Skip hidden directories and anything matching `.contextpullignore` (gitignore syntax subset: literal paths and `*` globs). Sorted order for determinism.
+**Discover.** Walk the corpus root. Include `.md .markdown .txt .docx .xlsx .pptx`, and `.pdf` when the `pdf` extra is installed. Skip hidden directories and anything matching `.contextpullignore` (gitignore syntax subset: literal paths and `*` globs). Sorted order for determinism.
 
 **Hash.** sha256 of file bytes. Unchanged documents are skipped whole. Deleted documents are removed with their sections and FTS rows.
 
 **Parse** produces a block stream: `Heading(level, text)`, `Paragraph(text)`, `Table(header_row, rows, raw)`, `Code(lang, raw)`, `ListBlock(raw)`.
 
 - Markdown: line-based parser for ATX headings, fenced code, pipe tables, paragraphs. Setext headings supported. Front matter (`---` block at top) parsed for `title` and otherwise dropped. No HTML rendering.
+- Office Open XML, standard library only: docx heading styles become headings, numbered paragraphs list items, tables pipe tables; xlsx sheets become a level-2 heading plus one pipe table each, first row as header, cached values only; pptx slides become a level-2 heading ("Slide N: title") with their text. Images and embedded objects are ignored.
 - Text: paragraphs split on blank lines; lines that are short, title-cased, and followed by a blank line are treated as level-2 headings.
 - PDF (optional `pdf` extra, pypdf): text runs with their font size; the most common size by character count is the body size, runs at least 1.2× larger and under 120 characters become headings, levels assigned by descending size. Tables are not detected, and page numbers are not recorded in v1; sections carry heading paths only. A PDF whose text has one font size yields a single heading-less document, which is still searchable.
 
