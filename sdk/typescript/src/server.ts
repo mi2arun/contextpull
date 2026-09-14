@@ -20,7 +20,7 @@ export function instructionsText(store: Store): string {
 
 export function buildServer(store: Store, log = false): Server {
   const { documents, sections } = store.counts();
-  const server = new Server({ name: "contextpull", version: "0.2.0" }, { capabilities: { tools: {}, resources: {} }, instructions: instructionsText(store) });
+  const server = new Server({ name: "contextpull", version: "0.2.1" }, { capabilities: { tools: {}, resources: {} }, instructions: instructionsText(store) });
 
   server.setRequestHandler(ListToolsRequestSchema, async () => ({
     tools: TOOLS.map((t) => ({ name: t.name, description: t.description, inputSchema: t.input_schema })),

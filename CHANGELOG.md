@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.1 — 2026-09-14
+
+- MCP Registry manifest (`server.json`) and package ownership markers (`mcp-name` in the README, `mcpName` in the npm package). No code changes.
+
 ## 0.2.0 — 2026-09-14
 
 ### Added

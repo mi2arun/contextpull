@@ -1,6 +1,6 @@
 [project]
 name = "contextpull"
-version = "0.2.0"
+version = "0.2.1"
 description = "Pull, don't push. Turns a folder of documents into an always-in-context index plus tools that return exact sections on demand, for Claude Code, any MCP host, or your own client."
 readme = "README.md"
 requires-python = ">=3.10"

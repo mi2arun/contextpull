@@ -1,0 +1,39 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.mi2arun/contextpull",
+  "title": "ContextPull",
+  "description": "Pull, don't push: an always-in-context index of your documents plus search, read, grep and neighbours tools that return exact sections on demand.",
+  "version": "0.2.1",
+  "websiteUrl": "https://mi2arun.github.io/contextpull/",
+  "repository": {
+    "url": "https://github.com/mi2arun/contextpull",
+    "source": "github"
+  },
+  "packages": [
+    {
+      "registryType": "pypi",
+      "identifier": "contextpull",
+      "version": "0.2.1",
+      "runtimeHint": "uvx",
+      "runtimeArguments": [
+        { "type": "named", "name": "--from", "value": "contextpull[mcp]", "description": "The server needs the mcp extra." }
+      ],
+      "packageArguments": [
+        { "type": "positional", "value": "serve", "valueHint": "serve" },
+        { "type": "positional", "valueHint": "corpus_or_store", "description": "A folder of .md/.txt/.docx/.xlsx/.pptx/.pdf files (ingested into <folder>/.contextpull/store.sqlite first) or an existing store.sqlite", "format": "filepath", "isRequired": true }
+      ],
+      "transport": { "type": "stdio" }
+    },
+    {
+      "registryType": "npm",
+      "identifier": "contextpull",
+      "version": "0.2.1",
+      "runtimeHint": "npx",
+      "packageArguments": [
+        { "type": "positional", "value": "serve", "valueHint": "serve" },
+        { "type": "positional", "valueHint": "store", "description": "An existing store.sqlite built by `uvx contextpull ingest <folder>`; the Node server only reads", "format": "filepath", "isRequired": true }
+      ],
+      "transport": { "type": "stdio" }
+    }
+  ]
+}

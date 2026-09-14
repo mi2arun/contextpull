@@ -114,3 +114,5 @@ The store file is the contract. `docs/store-format.md` says what a reader must d
 Start at [docs/README.md](docs/README.md): architecture, design, system design, tool reference, evaluation, roadmap, decision records.
 
 Measured with [ragbisect](https://github.com/mi2arun/ragbisect), which lives next door.
+
+<!-- mcp-name: io.github.mi2arun/contextpull -->

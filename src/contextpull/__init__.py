@@ -9,5 +9,5 @@ from __future__ import annotations
 from .store import Store, StoreError, SCHEMA_VERSION
 from .ops import Ops, Hit, Section, Match
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 __all__ = ["Store", "StoreError", "SCHEMA_VERSION", "Ops", "Hit", "Section", "Match", "__version__"]

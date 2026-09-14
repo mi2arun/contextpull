@@ -1,6 +1,6 @@
 {
   "name": "contextpull",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Pull, don't push. Store-native reader and MCP server for ContextPull stores (SQLite + FTS5). No Python at query time.",
   "license": "MIT",
   "type": "module",
@@ -42,5 +42,6 @@
   "publishConfig": {
     "access": "public"
   },
-  "homepage": "https://github.com/mi2arun/contextpull/tree/main/sdk/typescript"
+  "homepage": "https://github.com/mi2arun/contextpull/tree/main/sdk/typescript",
+  "mcpName": "io.github.mi2arun/contextpull"
 }
